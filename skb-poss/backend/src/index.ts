@@ -91,7 +91,7 @@ app.delete('/api/products/:id', authenticateJWT, authorizeRoles('ADMIN'), delete
 app.post('/api/sales', authenticateJWT, createSale);
 app.get('/api/sales', authenticateJWT, getSales);
 app.get('/api/sales/:id', authenticateJWT, getSaleById);
-app.delete('/api/sales/:id', authenticateRoles('ADMIN'), deleteSale);
+app.delete('/api/sales/:id', authenticateJWT, authorizeRoles('ADMIN'), deleteSale);
 app.patch('/api/sales/:id/pay-debt', authenticateJWT, payDebt);
 app.post('/api/sales/clear-debt', authenticateJWT, clearCustomerDebt);
 
@@ -101,7 +101,7 @@ app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getD
 // ─── HEALTH ────────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
 
-// ─── SETUP & STATUS (YANGI QO'SHILGAN QISM) ────────────────────────────────────
+// ─── SETUP & STATUS ────────────────────────────────────────────────────────────
 app.get('/api/db-status', async (_req, res) => {
   try {
     const userCount = await prisma.user.count();
