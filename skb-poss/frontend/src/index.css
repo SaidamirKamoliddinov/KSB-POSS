@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Custom fonts or adjustments */
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #0b0f19;
+  color: #f3f4f6;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar for sleek UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* ── PRINT STYLES ───────────────────────────────────────── */
+@media print {
+
+  /* Hide all interactive UI */
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* ── RECEIPT (80mm default, 58mm class override) ──── */
+  .print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: var(--receipt-width, 80mm) !important;
+    margin: 0 auto !important;
+    padding: 6px !important;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    font-size: 11px !important;
+  }
+
+  .print-area.width-58mm {
+    max-width: 58mm !important;
+    font-size: 9px !important;
+  }
+
+  /* ── LABEL (40mm × 30mm) ─────────────────────────── */
+  .print-label-wrapper {
+    display: block !important;
+  }
+
+  .print-label-wrapper > div {
+    width: 40mm !important;
+    height: 30mm !important;
+    padding: 2mm !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}
+
+/* Screen: hide print areas */
+.print-area {
+  display: none;
+}
+
+.print-label-wrapper {
+  display: none;
+}
