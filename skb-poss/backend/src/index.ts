@@ -91,7 +91,7 @@ app.delete('/api/products/:id', authenticateJWT, authorizeRoles('ADMIN'), delete
 app.post('/api/sales', authenticateJWT, createSale);
 app.get('/api/sales', authenticateJWT, getSales);
 app.get('/api/sales/:id', authenticateJWT, getSaleById);
-app.delete('/api/sales/:id', authenticateJWT, authorizeRoles('ADMIN'), deleteSale);
+app.delete('/api/sales/:id', authenticateRoles('ADMIN'), deleteSale);
 app.patch('/api/sales/:id/pay-debt', authenticateJWT, payDebt);
 app.post('/api/sales/clear-debt', authenticateJWT, clearCustomerDebt);
 
@@ -100,6 +100,25 @@ app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getD
 
 // ─── HEALTH ────────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
+
+// ─── SETUP & STATUS (YANGI QO'SHILGAN QISM) ────────────────────────────────────
+app.get('/api/db-status', async (_req, res) => {
+  try {
+    const userCount = await prisma.user.count();
+    res.json({ status: "connected", userCount });
+  } catch (error: any) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+app.post('/api/setup', async (_req, res) => {
+  try {
+    await seedInitialData();
+    res.json({ status: "success", message: "Setup endpoint orqali ma'lumotlar muvaffaqiyatli seed qilindi!" });
+  } catch (error: any) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
 
 // ─── SEED ──────────────────────────────────────────────────────────────────────
 async function seedInitialData() {
@@ -172,6 +191,7 @@ async function seedInitialData() {
     }
   } catch (err) {
     console.error('Seed error:', err);
+    throw err;
   }
 }
 
