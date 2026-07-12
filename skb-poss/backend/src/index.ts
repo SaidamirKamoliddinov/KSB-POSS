@@ -26,9 +26,9 @@ app.use(express.json());
 app.post('/api/auth/login', login);
 app.post('/api/auth/register', register);
 app.post('/api/auth/change-password', authenticateJWT, changePassword);
-app.get('/api/auth/all-users', authenticateJWT, getAllUsers); // Super Admin only
-app.patch('/api/auth/users/:id/toggle-block', authenticateJWT, toggleBlockUser); // Super Admin only
-app.delete('/api/auth/users/:id', authenticateJWT, deleteUser); // Super Admin only
+app.get('/api/auth/all-users', authenticateJWT, getAllUsers);
+app.patch('/api/auth/users/:id/toggle-block', authenticateJWT, toggleBlockUser);
+app.delete('/api/auth/users/:id', authenticateJWT, deleteUser);
 
 // ─── CATEGORIES ────────────────────────────────────────────────────────────────
 app.get('/api/categories', authenticateJWT, getCategories);
@@ -110,11 +110,10 @@ app.get('/api/db-status', async (_req, res) => {
   }
 });
 
-// chalkashlik bo'lmasligi uchun ham POST, ham GET qilib qo'yildi
 const handleSetup = async (_req: any, res: any) => {
   try {
-    await seedInitialData();
-    res.json({ success: true, status: "success", results: ["Setup muvaffaqiyatli bajarildi!"] });
+    const results = await seedInitialData();
+    res.json({ success: true, status: "success", results });
   } catch (error: any) {
     res.status(500).json({ success: false, status: "error", error: error.message });
   }
@@ -123,11 +122,13 @@ const handleSetup = async (_req: any, res: any) => {
 app.post('/api/setup', handleSetup);
 app.get('/api/setup', handleSetup);
 
-// ─── SEED ──────────────────────────────────────────────────────────────────────
+// ─── SEED FUNCTION (FIXED) ──────────────────────────────────────────────────────
 async function seedInitialData() {
+  const logs: string[] = [];
   try {
-    // 1. Seed Super Admin (no shop)
-    const superAdminExists = await prisma.user.findUnique({ where: { username: 'superadmin' } });
+    // 1. Super Admin borligini kafolatlangan findFirst orqali tekshiramiz
+    const superAdminExists = await prisma.user.findFirst({ where: { username: 'superadmin' } });
+    
     if (!superAdminExists) {
       const hash = await bcrypt.hash('super@2026', 10);
       await prisma.user.create({
@@ -140,10 +141,12 @@ async function seedInitialData() {
           shopId: null
         }
       });
-      console.log('Super Admin yaratildi: superadmin / super@2026');
+      logs.push('Super Admin muvaffaqiyatli yaratildi: superadmin / super@2026');
+    } else {
+      logs.push('Super Admin allaqachon mavjud.');
     }
 
-    // 2. Seed demo shop if no regular users exist
+    // 2. Demo do'konni tekshirish va yaratish
     const userCount = await prisma.user.count({ where: { role: { not: 'SUPER_ADMIN' } } });
     if (userCount === 0) {
       const shop = await prisma.shop.create({
@@ -190,9 +193,13 @@ async function seedInitialData() {
         ]
       });
 
-      console.log('Demo do\'kon yaratildi: admin/admin123, kassir/kassir123');
+      logs.push('Demo do\'kon va xodimlar yaratildi: admin/admin123, kassir/kassir123');
+    } else {
+      logs.push('Demo foydalanuvchilar bazada mavjud, qayta yozilmadi.');
     }
-  } catch (err) {
+    
+    return logs;
+  } catch (err: any) {
     console.error('Seed error:', err);
     throw err;
   }
@@ -201,5 +208,9 @@ async function seedInitialData() {
 // Bind to 0.0.0.0 for Wi-Fi sync across devices
 app.listen(Number(PORT), '0.0.0.0', async () => {
   console.log(`Backend server running on http://0.0.0.0:${PORT}`);
-  await seedInitialData();
+  try {
+    await seedInitialData();
+  } catch (e) {
+    console.error("Avtomatik seed bajarilmadi, lekin server ishlamoqda.");
+  }
 });
