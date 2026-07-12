@@ -40,7 +40,6 @@ app.delete('/api/categories/:id', authenticateJWT, authorizeRoles('ADMIN'), dele
 app.get('/api/products', authenticateJWT, getProducts);
 app.post('/api/products', authenticateJWT, authorizeRoles('ADMIN'), createProduct);
 app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (req, res) => {
-  // Bulk product creation endpoint
   try {
     const { products } = req.body;
     const shopId = (req as any).user?.shopId;
@@ -111,14 +110,18 @@ app.get('/api/db-status', async (_req, res) => {
   }
 });
 
-app.post('/api/setup', async (_req, res) => {
+// chalkashlik bo'lmasligi uchun ham POST, ham GET qilib qo'yildi
+const handleSetup = async (_req: any, res: any) => {
   try {
     await seedInitialData();
-    res.json({ status: "success", message: "Setup endpoint orqali ma'lumotlar muvaffaqiyatli seed qilindi!" });
+    res.json({ success: true, status: "success", results: ["Setup muvaffaqiyatli bajarildi!"] });
   } catch (error: any) {
-    res.status(500).json({ status: "error", message: error.message });
+    res.status(500).json({ success: false, status: "error", error: error.message });
   }
-});
+};
+
+app.post('/api/setup', handleSetup);
+app.get('/api/setup', handleSetup);
 
 // ─── SEED ──────────────────────────────────────────────────────────────────────
 async function seedInitialData() {
