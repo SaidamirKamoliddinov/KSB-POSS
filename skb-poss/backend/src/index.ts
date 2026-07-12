@@ -39,7 +39,7 @@ app.delete('/api/categories/:id', authenticateJWT, authorizeRoles('ADMIN'), dele
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', authenticateJWT, getProducts);
 app.post('/api/products', authenticateJWT, authorizeRoles('ADMIN'), createProduct);
-app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (req, res) => {
+app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (req: any, res: any) => {
   try {
     const { products } = req.body;
     const shopId = (req as any).user?.shopId;
@@ -98,10 +98,10 @@ app.post('/api/sales/clear-debt', authenticateJWT, clearCustomerDebt);
 app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getDashboardStats);
 
 // ─── HEALTH ────────────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
+app.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok', time: new Date() }));
 
 // ─── SETUP & STATUS ────────────────────────────────────────────────────────────
-app.get('/api/db-status', async (_req, res) => {
+app.get('/api/db-status', async (_req: any, res: any) => {
   try {
     const userCount = await prisma.user.count();
     res.json({ status: "connected", userCount });
