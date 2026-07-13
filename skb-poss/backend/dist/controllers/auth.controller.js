@@ -11,6 +11,7 @@ exports.toggleBlockUser = toggleBlockUser;
 exports.deleteUser = deleteUser;
 exports.getShopSettings = getShopSettings;
 exports.updateShopSettings = updateShopSettings;
+exports.updatePinCode = updatePinCode;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_js_1 = __importDefault(require("../db.js"));
@@ -71,6 +72,7 @@ async function login(req, res) {
                 fullName: user.fullName,
                 shopId: user.shopId,
                 shopName: user.shop?.name || 'KSB Super Admin',
+                pinCode: user.pinCode || '',
                 shop: user.shop ? {
                     name: user.shop.name,
                     address: user.shop.address,
@@ -187,6 +189,7 @@ async function getAllUsers(req, res) {
                 fullName: u.fullName,
                 username: u.username,
                 plainPassword: u.plainPassword,
+                pinCode: u.pinCode || '',
                 role: u.role,
                 isBlocked: u.isBlocked,
                 isExpired: expired,
@@ -302,5 +305,23 @@ async function updateShopSettings(req, res) {
     catch (error) {
         console.error('updateShopSettings error:', error);
         res.status(500).json({ error: 'Sozlamalarni saqlashda xatolik' });
+    }
+}
+async function updatePinCode(req, res) {
+    try {
+        const { pinCode } = req.body;
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+        }
+        await db_js_1.default.user.update({
+            where: { id: userId },
+            data: { pinCode: pinCode || "" }
+        });
+        res.json({ message: 'PIN kod muvaffaqiyatli saqlandi' });
+    }
+    catch (error) {
+        console.error('updatePinCode error:', error);
+        res.status(500).json({ error: 'PIN kodni saqlashda xatolik yuz berdi' });
     }
 }

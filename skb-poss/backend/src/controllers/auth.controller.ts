@@ -75,6 +75,7 @@ export async function login(req: AuthenticatedRequest, res: Response) {
         fullName: user.fullName,
         shopId: user.shopId,
         shopName: user.shop?.name || 'KSB Super Admin',
+        pinCode: user.pinCode || '',
         shop: user.shop ? {
           name: user.shop.name,
           address: user.shop.address,
@@ -205,6 +206,7 @@ export async function getAllUsers(req: AuthenticatedRequest, res: Response) {
         fullName: u.fullName,
         username: u.username,
         plainPassword: u.plainPassword,
+        pinCode: u.pinCode || '',
         role: u.role,
         isBlocked: u.isBlocked,
         isExpired: expired,
@@ -329,5 +331,26 @@ export async function updateShopSettings(req: AuthenticatedRequest, res: Respons
   } catch (error) {
     console.error('updateShopSettings error:', error);
     res.status(500).json({ error: 'Sozlamalarni saqlashda xatolik' });
+  }
+}
+
+export async function updatePinCode(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { pinCode } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { pinCode: pinCode || "" }
+    });
+
+    res.json({ message: 'PIN kod muvaffaqiyatli saqlandi' });
+  } catch (error) {
+    console.error('updatePinCode error:', error);
+    res.status(500).json({ error: 'PIN kodni saqlashda xatolik yuz berdi' });
   }
 }

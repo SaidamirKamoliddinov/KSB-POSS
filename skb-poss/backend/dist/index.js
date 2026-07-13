@@ -26,6 +26,7 @@ app.use(express_1.default.json());
 app.post('/api/auth/login', auth_controller_js_1.login);
 app.post('/api/auth/register', auth_controller_js_1.register);
 app.post('/api/auth/change-password', auth_js_1.authenticateJWT, auth_controller_js_1.changePassword);
+app.put('/api/auth/update-pin', auth_js_1.authenticateJWT, auth_controller_js_1.updatePinCode);
 app.get('/api/auth/all-users', auth_js_1.authenticateJWT, auth_controller_js_1.getAllUsers);
 app.patch('/api/auth/users/:id/toggle-block', auth_js_1.authenticateJWT, auth_controller_js_1.toggleBlockUser);
 app.delete('/api/auth/users/:id', auth_js_1.authenticateJWT, auth_controller_js_1.deleteUser);

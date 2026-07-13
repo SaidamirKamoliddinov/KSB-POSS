@@ -1593,7 +1593,30 @@ export default function Dashboard({ token, user }) {
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-emerald-400 text-sm flex items-center justify-between gap-3">
                 <span>✅ PIN kod o'rnatilgan</span>
                 <button
-                  onClick={() => { if (pinKey) { localStorage.removeItem(pinKey); setSuccess('PIN kod o\'chirildi!'); setTimeout(() => setSuccess(''), 1500); } }}
+                  onClick={async () => {
+                    if (pinKey) {
+                      try {
+                        const res = await fetch(`${API_URL}/auth/update-pin`, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                          },
+                          body: JSON.stringify({ pinCode: "" })
+                        });
+                        if (res.ok) {
+                          localStorage.removeItem(pinKey);
+                          setSuccess('PIN kod o\'chirildi!');
+                        } else {
+                          setError('PIN kodni o\'chirishda xatolik yuz berdi');
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        setError('Server bilan bog\'lanishda xatolik');
+                      }
+                      setTimeout(() => { setSuccess(''); setError(''); }, 1500);
+                    }
+                  }}
                   className="text-xs text-red-400 hover:text-red-300 cursor-pointer border border-red-500/20 px-2 py-1 rounded-lg"
                 >
                   O'chirish
@@ -1627,14 +1650,31 @@ export default function Dashboard({ token, user }) {
               </div>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!pinKey) { setError('Foydalanuvchi ID topilmadi'); return; }
                   if (pinInput.length !== 4 || !/^\d{4}$/.test(pinInput)) { setError('PIN kod 4 ta raqamdan iborat bo\'lishi kerak'); setTimeout(() => setError(''), 1500); return; }
                   if (pinInput !== pinConfirm) { setError('PIN kodlar mos kelmaydi'); setTimeout(() => setError(''), 1500); return; }
-                  localStorage.setItem(pinKey, pinInput);
+                  try {
+                    const res = await fetch(`${API_URL}/auth/update-pin`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ pinCode: pinInput })
+                    });
+                    if (res.ok) {
+                      localStorage.setItem(pinKey, pinInput);
+                      setSuccess('PIN kod o\'rnatildi! 1 soat faoliyatsizlikdan keyin avtomatik qulflanadi.');
+                    } else {
+                      setError('PIN kodni saqlashda xatolik yuz berdi');
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    setError('Server bilan bog\'lanishda xatolik');
+                  }
                   setPinInput(''); setPinConfirm('');
-                  setSuccess('PIN kod o\'rnatildi! 1 soat faoliyatsizlikdan keyin avtomatik qulflanadi.');
-                  setTimeout(() => setSuccess(''), 2000);
+                  setTimeout(() => { setSuccess(''); setError(''); }, 2000);
                 }}
                 className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl transition-all cursor-pointer"
               >

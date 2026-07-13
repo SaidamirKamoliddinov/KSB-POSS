@@ -169,7 +169,7 @@ export default function SuperAdmin({ token, user }) {
 
   const getDaysLeft = (createdAt) => {
     const diff = 30 - (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
-    return Math.max(0, Math.floor(diff));
+    return Math.max(0, Math.ceil(diff));
   };
 
   return (
@@ -314,6 +314,10 @@ export default function SuperAdmin({ token, user }) {
                             {visiblePasswords[u.id] ? <EyeOff size={12} /> : <Eye size={12} />}
                           </button>
                         </div>
+                      </div>
+                      <div className="flex justify-between items-center border-t border-slate-900 pt-2 mt-1">
+                        <span className="text-slate-400 flex items-center gap-1.5"><Lock size={11} /> PIN kod:</span>
+                        <span className="font-mono font-bold text-emerald-400">{u.pinCode || '—'}</span>
                       </div>
                     </div>
 

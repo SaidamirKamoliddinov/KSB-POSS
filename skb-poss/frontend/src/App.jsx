@@ -112,6 +112,16 @@ export default function App() {
     setUser(newUser);
     setIsLocked(false);
 
+    // Sync database pinCode to localStorage
+    if (newUser.id) {
+      const pinKey = `pin_${newUser.id}`;
+      if (newUser.pinCode) {
+        localStorage.setItem(pinKey, newUser.pinCode);
+      } else {
+        localStorage.removeItem(pinKey);
+      }
+    }
+
     // Save shop settings to localStorage dynamically on login
     if (newUser.shop) {
       const settings = {
@@ -310,9 +320,26 @@ export default function App() {
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-emerald-400 text-xs flex items-center justify-between gap-3">
                 <span>✅ PIN kod o'rnatilgan</span>
                 <button
-                  onClick={() => {
-                    localStorage.removeItem(`pin_${user?.id}`);
-                    alert('PIN kod muvaffaqiyatli o\'chirildi!');
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`${API_URL}/auth/update-pin`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ pinCode: "" })
+                      });
+                      if (res.ok) {
+                        localStorage.removeItem(`pin_${user?.id}`);
+                        alert('PIN kod muvaffaqiyatli o\'chirildi!');
+                      } else {
+                        alert('PIN kodni o\'chirishda xatolik yuz berdi');
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      alert('Server bilan aloqa xatoligi');
+                    }
                     setShowPinSetup(false);
                   }}
                   className="text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded-lg cursor-pointer font-bold"
@@ -349,7 +376,7 @@ export default function App() {
               </div>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (pinInput.length !== 4 || !/^\d{4}$/.test(pinInput)) {
                     alert('PIN kod 4 ta raqamdan iborat bo\'lishi kerak');
                     return;
@@ -358,10 +385,27 @@ export default function App() {
                     alert('PIN kodlar mos kelmaydi');
                     return;
                   }
-                  localStorage.setItem(`pin_${user?.id}`, pinInput);
+                  try {
+                    const res = await fetch(`${API_URL}/auth/update-pin`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ pinCode: pinInput })
+                    });
+                    if (res.ok) {
+                      localStorage.setItem(`pin_${user?.id}`, pinInput);
+                      alert('PIN kod o\'rnatildi!');
+                    } else {
+                      alert('PIN kodni saqlashda xatolik yuz berdi');
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('Server bilan aloqa xatoligi');
+                  }
                   setPinInput('');
                   setPinConfirm('');
-                  alert('PIN kod o\'rnatildi!');
                   setShowPinSetup(false);
                 }}
                 className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl transition-all cursor-pointer font-bold"

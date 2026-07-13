@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import prisma from './db.js';
 
-import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings } from './controllers/auth.controller.js';
+import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings, updatePinCode } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
 import { getProducts, createProduct, updateProduct, deleteProduct, lookupBarcode } from './controllers/product.controller.js';
 import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive } from './controllers/sale.controller.js';
@@ -26,6 +26,7 @@ app.use(express.json());
 app.post('/api/auth/login', login);
 app.post('/api/auth/register', register);
 app.post('/api/auth/change-password', authenticateJWT, changePassword);
+app.put('/api/auth/update-pin', authenticateJWT, updatePinCode);
 app.get('/api/auth/all-users', authenticateJWT, getAllUsers);
 app.patch('/api/auth/users/:id/toggle-block', authenticateJWT, toggleBlockUser);
 app.delete('/api/auth/users/:id', authenticateJWT, deleteUser);

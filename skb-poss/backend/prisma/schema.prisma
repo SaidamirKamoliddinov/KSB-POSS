@@ -26,6 +26,7 @@ model User {
   username      String   @unique
   passwordHash  String
   plainPassword String   @default("") // Stored for super admin visibility
+  pinCode       String   @default("") // 4-digit pin code stored in db
   role          String   // "SUPER_ADMIN" | "ADMIN" | "CASHIER"
   fullName      String
   isBlocked     Boolean  @default(false)
