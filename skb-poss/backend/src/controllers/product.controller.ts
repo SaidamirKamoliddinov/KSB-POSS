@@ -215,6 +215,23 @@ function capitalizeFirstLetter(str: string): string {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
+function cleanName(str: string): string {
+  if (!str) return '';
+  const parts = str.split(':');
+  let cleaned = parts[parts.length - 1].trim();
+  
+  // Clean up case-insensitive brand duplicates like "Coca-Cola Coca-Cola"
+  cleaned = cleaned.replace(/(coca-cola|pepsi|sprite|fanta)\s+\1/gi, '$1');
+  cleaned = cleaned.replace(/(coca\s+cola)\s+\1/gi, '$1');
+  cleaned = cleaned.replace(/(coca)\s+(coca-cola)/gi, '$2');
+  cleaned = cleaned.replace(/(coca)\s+(coca\s+cola)/gi, '$2');
+  
+  // Replace double spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
+}
+
 export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
   try {
     const { barcode } = req.params;
@@ -275,8 +292,7 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
             (item.fullName && item.fullName.includes(cleanBarcode))
           );
           if (match && match.name) {
-            const nameParts = match.name.split(':');
-            const cleanedName = nameParts.length > 1 ? nameParts.slice(1).join(':').trim() : match.name;
+            const cleanedName = cleanName(match.name);
             if (cleanedName) {
               return res.json({ name: capitalizeFirstLetter(cleanedName) });
             }
