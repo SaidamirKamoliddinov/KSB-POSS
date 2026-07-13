@@ -206,3 +206,61 @@ export async function deleteProduct(req: AuthenticatedRequest, res: Response) {
     res.status(500).json({ error: 'Mahsulotni o\'chirishda xatolik yuz berdi' });
   }
 }
+
+export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { barcode } = req.params;
+    const shopId = req.user?.shopId;
+
+    if (!shopId) {
+      return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+    }
+
+    if (!barcode || barcode.trim() === '') {
+      return res.status(400).json({ error: 'Shtrix-kod taqdim etilmagan' });
+    }
+
+    const cleanBarcode = barcode.trim();
+
+    // 1. Search local DB first
+    const dbMatch = await prisma.product.findFirst({
+      where: { barcode: cleanBarcode },
+      select: { name: true }
+    });
+
+    if (dbMatch && dbMatch.name) {
+      return res.json({ name: dbMatch.name });
+    }
+
+    // 2. Fetch from Open Food Facts API (Good for foods/beverages)
+    try {
+      const offResponse = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
+      if (offResponse.ok) {
+        const offData = await offResponse.json() as any;
+        if (offData && offData.product && offData.product.product_name) {
+          return res.json({ name: offData.product.product_name });
+        }
+      }
+    } catch (offError) {
+      console.warn('Open Food Facts API error:', offError);
+    }
+
+    // 3. Fetch from UPCitemdb API (Good for general merchandise)
+    try {
+      const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${cleanBarcode}`);
+      if (upcResponse.ok) {
+        const upcData = await upcResponse.json() as any;
+        if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
+          return res.json({ name: upcData.items[0].title });
+        }
+      }
+    } catch (upcError) {
+      console.warn('UPCitemdb API error:', upcError);
+    }
+
+    return res.json({ name: '' });
+  } catch (error) {
+    console.error('lookupBarcode error:', error);
+    res.status(500).json({ error: 'Shtrix-kod qidirishda xatolik yuz berdi' });
+  }
+}

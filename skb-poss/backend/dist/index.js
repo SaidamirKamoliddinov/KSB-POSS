@@ -36,6 +36,7 @@ app.put('/api/categories/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authoriz
 app.delete('/api/categories/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), category_controller_js_1.deleteCategory);
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', auth_js_1.authenticateJWT, product_controller_js_1.getProducts);
+app.get('/api/products/lookup-barcode/:barcode', auth_js_1.authenticateJWT, product_controller_js_1.lookupBarcode);
 app.post('/api/products', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), product_controller_js_1.createProduct);
 app.post('/api/products/bulk', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {

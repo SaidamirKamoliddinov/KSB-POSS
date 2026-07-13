@@ -636,6 +636,70 @@ export default function Dashboard({ token, user }) {
     }
   };
 
+  const [isSearchingBarcode, setIsSearchingBarcode] = useState(false);
+
+  const lookupBarcodeInfo = async (barcodeVal, isBulk = false, bulkIdx = null) => {
+    if (!barcodeVal || barcodeVal.trim().length < 4) return;
+    setIsSearchingBarcode(true);
+    try {
+      const res = await fetch(`${API_URL}/products/lookup-barcode/${barcodeVal.trim()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.name) {
+        if (isBulk && bulkIdx !== null) {
+          setBulkRows(prev => {
+            const updated = [...prev];
+            if (!updated[bulkIdx].name) {
+              updated[bulkIdx].name = data.name;
+            }
+            return updated;
+          });
+        } else {
+          setProductForm(prev => {
+            if (!prev.name) {
+              return { ...prev, name: data.name };
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Barcode lookup error:", err);
+    } finally {
+      setIsSearchingBarcode(false);
+    }
+  };
+
+  const handleSingleBarcodeChange = (e) => {
+    const val = e.target.value;
+    setProductForm(prev => ({ ...prev, barcode: val }));
+    if (val.length === 8 || val.length === 12 || val.length === 13 || val.length === 14) {
+      lookupBarcodeInfo(val, false);
+    }
+  };
+
+  const handleSingleBarcodeKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      lookupBarcodeInfo(productForm.barcode, false);
+    }
+  };
+
+  const handleBulkBarcodeChange = (idx, val) => {
+    updateBulkRow(idx, 'barcode', val);
+    if (val.length === 8 || val.length === 12 || val.length === 13 || val.length === 14) {
+      lookupBarcodeInfo(val, true, idx);
+    }
+  };
+
+  const handleBulkBarcodeKeyDown = (idx, e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      lookupBarcodeInfo(bulkRows[idx].barcode, true, idx);
+    }
+  };
+
   const updateBulkRow = (index, field, value) => {
     const updated = [...bulkRows];
     updated[index][field] = value;
@@ -1615,13 +1679,21 @@ export default function Dashboard({ token, user }) {
 
                 <div className="col-span-2">
                   <label className="block text-xs text-slate-400 font-semibold mb-2">Shtrix-kod</label>
-                  <input
-                    type="text"
-                    value={productForm.barcode}
-                    onChange={e => setProductForm({...productForm, barcode: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="Shtrix-kod"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={productForm.barcode}
+                      onChange={handleSingleBarcodeChange}
+                      onKeyDown={handleSingleBarcodeKeyDown}
+                      className="w-full pl-4 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="Shtrix-kod (skanerlang yoki yozib Enter bosing)"
+                    />
+                    {isSearchingBarcode && (
+                      <div className="absolute right-3 top-3.5 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -1727,7 +1799,8 @@ export default function Dashboard({ token, user }) {
                         <input
                           type="text"
                           value={row.barcode}
-                          onChange={(e) => updateBulkRow(idx, 'barcode', e.target.value)}
+                          onChange={(e) => handleBulkBarcodeChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleBulkBarcodeKeyDown(idx, e)}
                           className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
                           placeholder="Barkod"
                         />

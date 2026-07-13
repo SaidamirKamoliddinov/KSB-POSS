@@ -6,7 +6,7 @@ import prisma from './db.js';
 
 import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
-import { getProducts, createProduct, updateProduct, deleteProduct } from './controllers/product.controller.js';
+import { getProducts, createProduct, updateProduct, deleteProduct, lookupBarcode } from './controllers/product.controller.js';
 import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive } from './controllers/sale.controller.js';
 import { getDashboardStats } from './controllers/report.controller.js';
 import { authenticateJWT, authorizeRoles } from './middleware/auth.js';
@@ -38,6 +38,7 @@ app.delete('/api/categories/:id', authenticateJWT, authorizeRoles('ADMIN'), dele
 
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', authenticateJWT, getProducts);
+app.get('/api/products/lookup-barcode/:barcode', authenticateJWT, lookupBarcode);
 app.post('/api/products', authenticateJWT, authorizeRoles('ADMIN'), createProduct);
 app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (req: any, res: any) => {
   try {
