@@ -245,7 +245,33 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       console.warn('Open Food Facts API error:', offError);
     }
 
-    // 3. Fetch from UPCitemdb API (Good for general merchandise)
+    // 3. Fetch from Open Beauty Facts API (Good for cosmetics, personal care, cotton swabs/uxachiska, hygiene)
+    try {
+      const obfResponse = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
+      if (obfResponse.ok) {
+        const obfData = await obfResponse.json() as any;
+        if (obfData && obfData.product && obfData.product.product_name) {
+          return res.json({ name: obfData.product.product_name });
+        }
+      }
+    } catch (obfError) {
+      console.warn('Open Beauty Facts API error:', obfError);
+    }
+
+    // 4. Fetch from Open Products Facts API (Good for general non-food items, household products)
+    try {
+      const opfResponse = await fetch(`https://world.openproductsfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
+      if (opfResponse.ok) {
+        const opfData = await opfResponse.json() as any;
+        if (opfData && opfData.product && opfData.product.product_name) {
+          return res.json({ name: opfData.product.product_name });
+        }
+      }
+    } catch (opfError) {
+      console.warn('Open Products Facts API error:', opfError);
+    }
+
+    // 5. Fetch from UPCitemdb API (Good for general merchandise)
     try {
       const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${cleanBarcode}`);
       if (upcResponse.ok) {
