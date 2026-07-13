@@ -2,13 +2,38 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <!-- Title & Meta -->
+    <title>KSB POSS - Kassa Tizimi</title>
+    <meta name="description" content="KSB POSS — Professional do'kon boshqaruv va kassa tizimi" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KSB POSS" />
+
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SKB POSS - Boshqaruv va Kassa Tizimi</title>
-    <script type="module" crossorigin src="/assets/index-nIVyCPjI.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CjcsGiZD.css">
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-CylRuBkl.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CFb9dFhq.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
+
+    <!-- Register Service Worker for PWA installability -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[KSB POSS] SW registered:', reg.scope))
+            .catch(err => console.warn('[KSB POSS] SW registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>

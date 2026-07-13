@@ -1880,6 +1880,7 @@ export default function Dashboard({ token, user }) {
             </div>
           </div>
         </div>
+      )}
       {/* 4. ARCHIVE CLEAR MODAL */}
       {showArchiveClearModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 no-print">
