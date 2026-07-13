@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import prisma from '../db.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -207,6 +209,12 @@ export async function deleteProduct(req: AuthenticatedRequest, res: Response) {
   }
 }
 
+function capitalizeFirstLetter(str: string): string {
+  if (!str) return '';
+  const trimmed = str.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
   try {
     const { barcode } = req.params;
@@ -222,6 +230,30 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
 
     const cleanBarcode = barcode.trim();
 
+    // 0. Search local barcode registry file first
+    try {
+      const pathsToTry = [
+        path.join(process.cwd(), 'src/barcode_registry.json'),
+        path.join(process.cwd(), 'dist/barcode_registry.json'),
+        path.join(process.cwd(), 'barcode_registry.json')
+      ];
+      let registryPath = '';
+      for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+          registryPath = p;
+          break;
+        }
+      }
+      if (registryPath) {
+        const registryData = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+        if (registryData[cleanBarcode]) {
+          return res.json({ name: capitalizeFirstLetter(registryData[cleanBarcode]) });
+        }
+      }
+    } catch (registryError) {
+      console.warn('Barcode registry file error:', registryError);
+    }
+
     // 1. Search local DB first
     const dbMatch = await prisma.product.findFirst({
       where: { barcode: cleanBarcode },
@@ -229,16 +261,39 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
     });
 
     if (dbMatch && dbMatch.name) {
-      return res.json({ name: dbMatch.name });
+      return res.json({ name: capitalizeFirstLetter(dbMatch.name) });
     }
 
-    // 2. Fetch from Open Food Facts API (Good for foods/beverages)
+    // 2. Fetch from Soliq (Uzbekistan Tax Committee) Elasticsearch API (Free & local to Uzbekistan)
+    try {
+      const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${cleanBarcode}&size=10&page=0&lang=uz`);
+      if (soliqResponse.ok) {
+        const soliqData = await soliqResponse.json() as any;
+        if (soliqData && Array.isArray(soliqData.data)) {
+          const match = soliqData.data.find((item: any) => 
+            item.internationalCode === cleanBarcode || 
+            (item.fullName && item.fullName.includes(cleanBarcode))
+          );
+          if (match && match.name) {
+            const nameParts = match.name.split(':');
+            const cleanedName = nameParts.length > 1 ? nameParts.slice(1).join(':').trim() : match.name;
+            if (cleanedName) {
+              return res.json({ name: capitalizeFirstLetter(cleanedName) });
+            }
+          }
+        }
+      }
+    } catch (soliqError) {
+      console.warn('Soliq API error:', soliqError);
+    }
+
+    // 3. Fetch from Open Food Facts API (Good for foods/beverages)
     try {
       const offResponse = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
       if (offResponse.ok) {
         const offData = await offResponse.json() as any;
         if (offData && offData.product && offData.product.product_name) {
-          return res.json({ name: offData.product.product_name });
+          return res.json({ name: capitalizeFirstLetter(offData.product.product_name) });
         }
       }
     } catch (offError) {
@@ -251,7 +306,7 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (obfResponse.ok) {
         const obfData = await obfResponse.json() as any;
         if (obfData && obfData.product && obfData.product.product_name) {
-          return res.json({ name: obfData.product.product_name });
+          return res.json({ name: capitalizeFirstLetter(obfData.product.product_name) });
         }
       }
     } catch (obfError) {
@@ -264,7 +319,7 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (opfResponse.ok) {
         const opfData = await opfResponse.json() as any;
         if (opfData && opfData.product && opfData.product.product_name) {
-          return res.json({ name: opfData.product.product_name });
+          return res.json({ name: capitalizeFirstLetter(opfData.product.product_name) });
         }
       }
     } catch (opfError) {
@@ -277,7 +332,7 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (upcResponse.ok) {
         const upcData = await upcResponse.json() as any;
         if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
-          return res.json({ name: upcData.items[0].title });
+          return res.json({ name: capitalizeFirstLetter(upcData.items[0].title) });
         }
       }
     } catch (upcError) {
@@ -288,5 +343,34 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
   } catch (error) {
     console.error('lookupBarcode error:', error);
     res.status(500).json({ error: 'Shtrix-kod qidirishda xatolik yuz berdi' });
+  }
+}
+
+export async function getGlobalBarcodes(req: AuthenticatedRequest, res: Response) {
+  try {
+    const pathsToTry = [
+      path.join(process.cwd(), 'src/barcode_registry.json'),
+      path.join(process.cwd(), 'dist/barcode_registry.json'),
+      path.join(process.cwd(), 'barcode_registry.json')
+    ];
+    let registryPath = '';
+    for (const p of pathsToTry) {
+      if (fs.existsSync(p)) {
+        registryPath = p;
+        break;
+      }
+    }
+    if (registryPath) {
+      const registryData = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+      const list = Object.keys(registryData).map(key => ({
+        barcode: key,
+        name: capitalizeFirstLetter(registryData[key])
+      }));
+      return res.json(list);
+    }
+    return res.json([]);
+  } catch (error) {
+    console.error('getGlobalBarcodes error:', error);
+    res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
   }
 }

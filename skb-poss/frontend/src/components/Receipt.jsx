@@ -28,7 +28,21 @@ export default function Receipt({ sale }) {
   const receiptWidth = savedSettings.receiptWidth || '80mm';
 
   return (
-    <div className={`print-area font-mono text-[12px] leading-tight text-black mx-auto p-4 bg-white ${receiptWidth === '58mm' ? 'width-58mm' : ''}`}>
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: ${receiptWidth} auto !important;
+            margin: 0 !important;
+          }
+          body {
+            width: ${receiptWidth} !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+        }
+      `}} />
+      <div className={`print-area font-mono leading-tight text-black mx-auto p-2 bg-white width-${receiptWidth}`}>
       {/* Receipt Header */}
       <div className="text-center font-bold text-sm mb-2 uppercase">
         {savedSettings.shopName}
@@ -91,5 +105,6 @@ export default function Receipt({ sale }) {
         Xaridingiz uchun rahmat!
       </div>
     </div>
+    </>
   );
 }

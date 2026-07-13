@@ -44,22 +44,32 @@ body {
     display: none !important;
   }
 
-  /* ── RECEIPT (80mm default, 58mm class override) ──── */
+  /* ── RECEIPT (custom widths) ──── */
   .print-area {
     display: block !important;
-    width: 100% !important;
-    max-width: var(--receipt-width, 80mm) !important;
     margin: 0 auto !important;
     padding: 6px !important;
     background: #fff !important;
     color: #000 !important;
     box-shadow: none !important;
+  }
+
+  .print-area.width-80mm {
+    max-width: 80mm !important;
+    width: 80mm !important;
     font-size: 11px !important;
   }
 
   .print-area.width-58mm {
     max-width: 58mm !important;
-    font-size: 9px !important;
+    width: 58mm !important;
+    font-size: 9.5px !important;
+  }
+
+  .print-area.width-56mm {
+    max-width: 56mm !important;
+    width: 56mm !important;
+    font-size: 8.5px !important;
   }
 
   /* ── LABEL (40mm × 30mm) ─────────────────────────── */

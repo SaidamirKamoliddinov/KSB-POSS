@@ -204,7 +204,7 @@ export default function App() {
 
         {/* Tab nav (Admin only) */}
         {isAdmin && !isSuperAdmin && (
-          <nav className="flex items-center gap-2">
+          <nav className="hidden sm:flex items-center gap-2">
             {[
               { id: 'pos', label: 'Kassa', icon: <ShoppingCart size={14} /> },
               { id: 'dashboard', label: 'Boshqaruv', icon: <LayoutDashboard size={14} /> }
@@ -278,7 +278,7 @@ export default function App() {
       </header>
 
       {/* Main content */}
-      <main className="no-print flex-1 p-6 max-w-7xl w-full mx-auto">
+      <main className="no-print flex-1 p-6 pb-24 sm:pb-6 max-w-7xl w-full mx-auto">
         {isSuperAdmin ? (
           <SuperAdmin token={token} user={user} />
         ) : activeTab === 'pos' ? (
@@ -414,6 +414,29 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation (Visible only on screens < sm and for Admin role) */}
+      {isAdmin && !isSuperAdmin && (
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0c101b]/95 backdrop-blur-md border-t border-slate-800 h-16 flex items-center justify-around px-4 no-print shadow-[0_-4px_12px_rgba(0,0,0,0.4)]">
+          {[
+            { id: 'pos', label: 'Kassa', icon: <ShoppingCart size={20} /> },
+            { id: 'dashboard', label: 'Boshqaruv', icon: <LayoutDashboard size={20} /> }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex flex-col items-center justify-center gap-1 w-20 h-full transition-all cursor-pointer ${
+                activeTab === tab.id
+                  ? 'text-emerald-400 font-bold scale-105'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {tab.icon}
+              <span className="text-[10px] tracking-tight">{tab.label}</span>
+            </button>
+          ))}
         </div>
       )}
 

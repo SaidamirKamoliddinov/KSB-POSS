@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 export default function POS({ token, user, onTriggerPrint }) {
+  const [activeMobileTab, setActiveMobileTab] = useState('catalog'); // 'catalog' | 'cart'
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
@@ -390,6 +391,7 @@ export default function POS({ token, user, onTriggerPrint }) {
       sendTelegramNotification(data);
       
       setCart([]);
+      setActiveMobileTab('catalog');
       setDiscount(0);
       setCustomerName('');
       setSuccessMsg('Sotuv yakunlandi!');
@@ -411,8 +413,35 @@ export default function POS({ token, user, onTriggerPrint }) {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 text-white" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      {/* Mobile view sub-tabs */}
+      <div className="lg:hidden flex w-full border-b border-slate-800 mb-4 gap-1 no-print shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveMobileTab('catalog')}
+          className={`flex-1 pb-3 text-center font-bold text-sm border-b-2 cursor-pointer transition-all ${
+            activeMobileTab === 'catalog'
+              ? 'border-emerald-500 text-emerald-400'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          Katalog ({filteredProducts.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMobileTab('cart')}
+          className={`flex-1 pb-3 text-center font-bold text-sm border-b-2 cursor-pointer transition-all flex items-center justify-center gap-2 ${
+            activeMobileTab === 'cart'
+              ? 'border-emerald-500 text-emerald-400'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <ShoppingCart size={16} />
+          <span>Savat ({cart.length})</span>
+        </button>
+      </div>
+
       {/* ─── LEFT: Product Catalog ──────────────────────────────── */}
-      <div className="flex-1 flex flex-col gap-4">
+      <div className={`flex-1 flex flex-col gap-4 ${activeMobileTab === 'catalog' ? 'flex' : 'hidden lg:flex'}`}>
         
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 bg-slate-900/40 border border-slate-800 p-4 rounded-3xl backdrop-blur-md">
@@ -464,7 +493,7 @@ export default function POS({ token, user, onTriggerPrint }) {
         )}
 
         {/* Product Table */}
-        <div className="bg-slate-900/30 border border-slate-850 rounded-3xl overflow-hidden flex-1" style={{ maxHeight: 'calc(100vh - 215px)', overflowY: 'auto' }}>
+        <div className="hidden md:block bg-slate-900/30 border border-slate-850 rounded-3xl overflow-hidden flex-1" style={{ maxHeight: 'calc(100vh - 215px)', overflowY: 'auto' }}>
           {filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-sm">Mahsulotlar topilmadi</div>
           ) : (
@@ -577,12 +606,112 @@ export default function POS({ token, user, onTriggerPrint }) {
             </table>
           )}
         </div>
+
+        {/* Product Cards for Mobile */}
+        <div className="md:hidden space-y-3 overflow-y-auto max-h-[calc(100vh-270px)] pr-1 pb-4">
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-sm">Mahsulotlar topilmadi</div>
+          ) : (
+            filteredProducts.map(prod => {
+              const cartItem = cart.find(c => c.productId === prod.id);
+              const rowData = getRowData(prod.id, prod.sellingPrice);
+              return (
+                <div
+                  key={prod.id}
+                  onClick={() => { if (!cartItem) addToCart(prod); }}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    cartItem
+                      ? 'bg-emerald-500/5 border-emerald-500/40 shadow-sm'
+                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <h4 className="font-bold text-white text-sm">
+                        {prod.name}
+                        {cartItem && (
+                          <span className="ml-2 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full font-normal">
+                            savatda
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-mono mt-1">
+                        Barkod: {prod.barcode || '—'}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-black text-emerald-400 block">
+                        {prod.sellingPrice.toLocaleString()} UZS
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Qoldiq: {prod.stock} {prod.unit}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/40" onClick={e => e.stopPropagation()}>
+                    {/* Qty controls */}
+                    <div className="flex items-center gap-1">
+                      {rowData.inCart && (
+                        <button
+                          type="button"
+                          onClick={() => updateCartQty(prod.id, -1)}
+                          className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-white rounded-lg cursor-pointer"
+                        ><Minus size={12} /></button>
+                      )}
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={rowData.quantity}
+                        onChange={e => handleRowQtyChange(prod.id, e.target.value, prod.stock, prod.sellingPrice)}
+                        onBlur={() => {
+                          if (rowData.inCart) {
+                            commitCartQty(prod.id, rowData.quantity, prod.stock);
+                          }
+                        }}
+                        className={`w-14 text-center bg-slate-955 border rounded-lg text-white font-bold text-xs py-1.5 focus:outline-none ${
+                          rowData.inCart ? 'border-emerald-500/50' : 'border-slate-800'
+                        }`}
+                      />
+                      {rowData.inCart ? (
+                        <button
+                          type="button"
+                          onClick={() => updateCartQty(prod.id, 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-lg cursor-pointer"
+                        ><Plus size={12} /></button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRowAddOrUpdate(prod)}
+                          className="w-8 h-8 flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg cursor-pointer shadow-md"
+                        ><Plus size={12} /></button>
+                      )}
+                    </div>
+
+                    {/* Custom Price edit */}
+                    <div className="relative w-32">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={rowData.sellingPrice}
+                        onChange={e => handleRowPriceChange(prod.id, e.target.value, prod.sellingPrice)}
+                        className={`w-full pl-2 pr-8 py-1 bg-slate-955 border rounded-lg font-bold text-xs focus:outline-none text-right ${
+                          rowData.inCart ? 'border-emerald-500/50 text-emerald-400' : 'border-slate-800 text-slate-300'
+                        }`}
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 text-[9px] pointer-events-none">UZS</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* ─── RIGHT: Cart Panel (Full Height - Display Only) ──────── */}
       <div 
-        className="w-full lg:w-[460px] bg-slate-900/50 border border-slate-850 rounded-3xl p-4 backdrop-blur-xl flex flex-col sticky top-20 shadow-2xl"
-        style={{ height: 'calc(100vh - 110px)' }}
+        className={`w-full lg:w-[460px] bg-slate-900/50 border border-slate-850 rounded-3xl p-4 backdrop-blur-xl flex flex-col lg:sticky lg:top-20 shadow-2xl h-full min-h-[calc(100vh-220px)] lg:h-[calc(100vh-110px)] ${activeMobileTab === 'cart' ? 'flex' : 'hidden lg:flex'}`}
       >
         {/* Cart Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
@@ -744,6 +873,28 @@ export default function POS({ token, user, onTriggerPrint }) {
           </button>
         </div>
       </div>
+
+      {/* Floating Cart Button for Mobile (Shows only in catalog view when cart is not empty) */}
+      {activeMobileTab === 'catalog' && cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-20 left-4 right-4 z-40 bg-emerald-600 border border-emerald-500 text-white px-4 py-3.5 rounded-2xl shadow-xl shadow-emerald-600/35 flex items-center justify-between no-print animate-in fade-in slide-in-from-bottom duration-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center font-extrabold text-sm">
+              {cart.length}
+            </div>
+            <div>
+              <span className="text-[10px] text-emerald-100 block uppercase tracking-wider font-semibold">Savatcha to'la</span>
+              <span className="text-sm font-bold">{calculateTotal().toLocaleString()} UZS</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab('cart')}
+            className="px-4 py-1.5 bg-white text-emerald-600 hover:bg-emerald-50 rounded-xl text-xs font-black cursor-pointer shadow-sm transition-all"
+          >
+            Savatga o'tish →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

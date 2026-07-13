@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../config.js';
 import { 
   Bar, Line, Doughnut 
@@ -44,8 +44,8 @@ export default function Dashboard({ token, user }) {
   const [inventorySearch, setInventorySearch] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState(new Set());
   const [debtPayInputs, setDebtPayInputs] = useState({});
-
-  // 
+  const barcodeTimeoutRef = useRef(null);
+  const bulkBarcodeTimeoutRefs = useRef({});
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -91,6 +91,7 @@ export default function Dashboard({ token, user }) {
 
   // Settings State
   const [receiptWidth, setReceiptWidth] = useState('80mm');
+  const [labelSize, setLabelSize] = useState('40x30mm');
   const [shopName, setShopName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
@@ -196,6 +197,11 @@ export default function Dashboard({ token, user }) {
 
   const loadShopSettings = async () => {
     try {
+      const localSaved = JSON.parse(localStorage.getItem('shopSettings')) || {};
+      setPrintReceipt(localSaved.printReceipt !== false);
+      setReceiptWidth(localSaved.receiptWidth || '80mm');
+      setLabelSize(localSaved.labelSize || '40x30mm');
+
       const res = await fetch(`${API_URL}/shop`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -207,14 +213,16 @@ export default function Dashboard({ token, user }) {
         setTgBotToken(data.tgBotToken || '');
         setTgChatId(data.tgChatId || '');
 
-        const localSaved = JSON.parse(localStorage.getItem('shopSettings')) || {};
         localStorage.setItem('shopSettings', JSON.stringify({
           ...localSaved,
           shopName: data.name,
           address: data.address,
           phone: data.phone,
           tgBotToken: data.tgBotToken,
-          tgChatId: data.tgChatId
+          tgChatId: data.tgChatId,
+          printReceipt: localSaved.printReceipt !== false,
+          receiptWidth: localSaved.receiptWidth || '80mm',
+          labelSize: localSaved.labelSize || '40x30mm'
         }));
       } else {
         const saved = JSON.parse(localStorage.getItem('shopSettings')) || {
@@ -223,6 +231,7 @@ export default function Dashboard({ token, user }) {
           phone: "+998 (99) 123-45-67",
           printReceipt: true,
           receiptWidth: '80mm',
+          labelSize: '40x30mm',
           tgBotToken: '',
           tgChatId: ''
         };
@@ -231,6 +240,7 @@ export default function Dashboard({ token, user }) {
         setPhone(saved.phone);
         setPrintReceipt(saved.printReceipt !== false);
         setReceiptWidth(saved.receiptWidth || '80mm');
+        setLabelSize(saved.labelSize || '40x30mm');
         setTgBotToken(saved.tgBotToken || '');
         setTgChatId(saved.tgChatId || '');
       }
@@ -268,6 +278,7 @@ export default function Dashboard({ token, user }) {
         phone: data.phone,
         printReceipt,
         receiptWidth,
+        labelSize,
         tgBotToken: data.tgBotToken,
         tgChatId: data.tgChatId
       };
@@ -510,6 +521,15 @@ export default function Dashboard({ token, user }) {
     const shopDisplayName = shopName || "KSB POSS DO'KONI";
     const shopAddr = address || '';
 
+    // Extract width and height from labelSize, e.g. "40x30mm"
+    const [widthStr, heightStr] = labelSize.split('x');
+    const widthVal = widthStr || '40mm';
+    const heightVal = heightStr || '30mm';
+    
+    // Calculate a scale factor based on the height
+    const hNum = parseFloat(heightVal) || 30;
+    const scale = hNum / 30.0;
+
     const labelsHtml = productList.map(prod => {
       // Generate barcode bars: alternate thin/thick bars for realistic look
       const barcode = prod.barcode || prod.id.slice(0, 12).toUpperCase();
@@ -521,50 +541,50 @@ export default function Dashboard({ token, user }) {
 
       return `
         <div style="
-          width:40mm; height:30mm; padding:1.5mm; box-sizing:border-box;
+          width:${widthVal}; height:${heightVal}; padding:${1.5 * scale}mm; box-sizing:border-box;
           background:#fff; color:#0f172a; overflow:hidden;
           page-break-after:always; page-break-inside:avoid;
           display:flex; flex-direction:column; justify-content:space-between;
-          border:2px solid #0f172a;
-          border-radius:3mm;
+          border:${2 * scale}px solid #0f172a;
+          border-radius:${3 * scale}mm;
           font-family:'Arial',sans-serif;
         ">
           <!-- Shop Header (Deluxe styling) -->
-          <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5mm; display:flex; flex-direction:column; align-items:center; flex-shrink:0;">
-            <div style="font-size:7px; font-weight:800; text-transform:uppercase; color:#0f172a; letter-spacing:0.8px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
+          <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: ${0.5 * scale}mm; display:flex; flex-direction:column; align-items:center; flex-shrink:0;">
+            <div style="font-size:${7 * scale}px; font-weight:800; text-transform:uppercase; color:#0f172a; letter-spacing:${0.8 * scale}px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
               ⭐ ${shopDisplayName} ⭐
             </div>
-            <div style="font-size:4.5px; color:#64748b; font-weight:500; letter-spacing:0.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; margin-top:0.2mm;">
+            <div style="font-size:${4.5 * scale}px; color:#64748b; font-weight:500; letter-spacing:${0.2 * scale}px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; margin-top:${0.2 * scale}mm;">
               ${shopAddr}
             </div>
           </div>
 
           <!-- Product Info & Price Row -->
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:1.5mm; margin: 1mm 0; flex-shrink:0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:${1.5 * scale}mm; margin: ${1 * scale}mm 0; flex-shrink:0;">
             <!-- Product Name -->
             <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">
-              <span style="font-size:4.5px; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.5px; margin-bottom:0.3mm;">Mahsulot</span>
-              <div style="font-size:7.5px; font-weight:800; color:#0f172a; line-height:1.2; word-break:break-all; max-height:7.5mm; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+              <span style="font-size:${4.5 * scale}px; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:${0.5 * scale}px; margin-bottom:${0.3 * scale}mm;">Mahsulot</span>
+              <div style="font-size:${7.5 * scale}px; font-weight:800; color:#0f172a; line-height:1.2; word-break:break-all; max-height:${7.5 * scale}mm; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
                 ${prod.name}
               </div>
             </div>
             
             <!-- Deluxe Price Badge -->
-            <div style="background:#0f172a; color:#fff; border-radius:1.5mm; padding: 1mm 1.8mm; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #10b981;">
-              <span style="font-size:3.5px; font-weight:700; text-transform:uppercase; color:#10b981; letter-spacing:0.5px; margin-bottom:0.2mm;">Narxi</span>
-              <div style="display:flex; align-items:baseline; gap:0.3mm;">
-                <span style="font-size:10.5px; font-weight:900; color:#fff; letter-spacing:-0.2px;">${prod.sellingPrice.toLocaleString()}</span>
-                <span style="font-size:4.5px; font-weight:700; color:#10b981;">sum</span>
+            <div style="background:#0f172a; color:#fff; border-radius:${1.5 * scale}mm; padding: ${1 * scale}mm ${1.8 * scale}mm; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #10b981;">
+              <span style="font-size:${3.5 * scale}px; font-weight:700; text-transform:uppercase; color:#10b981; letter-spacing:${0.5 * scale}px; margin-bottom:${0.2 * scale}mm;">Narxi</span>
+              <div style="display:flex; align-items:baseline; gap:${0.3 * scale}mm;">
+                <span style="font-size:${10.5 * scale}px; font-weight:900; color:#fff; letter-spacing:${-0.2 * scale}px;">${prod.sellingPrice.toLocaleString()}</span>
+                <span style="font-size:${4.5 * scale}px; font-weight:700; color:#10b981;">sum</span>
               </div>
             </div>
           </div>
 
           <!-- Barcode (Crisp & Premium) -->
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex-shrink:0; padding-top:0.5mm;">
-            <div style="display:flex; align-items:stretch; height:5.2mm; width:88%; justify-content:center; gap:0; opacity:0.95;">
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex-shrink:0; padding-top:${0.5 * scale}mm;">
+            <div style="display:flex; align-items:stretch; height:${5.2 * scale}mm; width:88%; justify-content:center; gap:0; opacity:0.95;">
               ${bars}
             </div>
-            <div style="font-size:5px; font-family:'Courier New', monospace; font-weight:bold; letter-spacing:0.6px; color:#475569; margin-top:0.4mm; text-align:center;">
+            <div style="font-size:${5 * scale}px; font-family:'Courier New', monospace; font-weight:bold; letter-spacing:${0.6 * scale}px; color:#475569; margin-top:${0.4 * scale}mm; text-align:center;">
               *${barcode}*
             </div>
           </div>
@@ -584,7 +604,7 @@ export default function Dashboard({ token, user }) {
           * { margin:0; padding:0; box-sizing:border-box; }
           html, body { background:#f4f4f4; font-family:Arial,sans-serif; }
           .preview-wrapper { display:flex; flex-wrap:wrap; gap:4mm; padding:8mm; justify-content:flex-start; }
-          @page { size:40mm 30mm; margin:0; }
+          @page { size: ${widthVal} ${heightVal}; margin:0; }
           @media print {
             html, body { background:#fff; }
             .preview-wrapper { display:block; padding:0; gap:0; }
@@ -674,28 +694,44 @@ export default function Dashboard({ token, user }) {
   const handleSingleBarcodeChange = (e) => {
     const val = e.target.value;
     setProductForm(prev => ({ ...prev, barcode: val }));
-    if (val.length === 8 || val.length === 12 || val.length === 13 || val.length === 14) {
-      lookupBarcodeInfo(val, false);
+    if (barcodeTimeoutRef.current) {
+      clearTimeout(barcodeTimeoutRef.current);
+    }
+    if (val.trim().length >= 4) {
+      barcodeTimeoutRef.current = setTimeout(() => {
+        lookupBarcodeInfo(val.trim(), false);
+      }, 300);
     }
   };
 
   const handleSingleBarcodeKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (barcodeTimeoutRef.current) {
+        clearTimeout(barcodeTimeoutRef.current);
+      }
       lookupBarcodeInfo(productForm.barcode, false);
     }
   };
 
   const handleBulkBarcodeChange = (idx, val) => {
     updateBulkRow(idx, 'barcode', val);
-    if (val.length === 8 || val.length === 12 || val.length === 13 || val.length === 14) {
-      lookupBarcodeInfo(val, true, idx);
+    if (bulkBarcodeTimeoutRefs.current[idx]) {
+      clearTimeout(bulkBarcodeTimeoutRefs.current[idx]);
+    }
+    if (val.trim().length >= 4) {
+      bulkBarcodeTimeoutRefs.current[idx] = setTimeout(() => {
+        lookupBarcodeInfo(val.trim(), true, idx);
+      }, 300);
     }
   };
 
   const handleBulkBarcodeKeyDown = (idx, e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (bulkBarcodeTimeoutRefs.current[idx]) {
+        clearTimeout(bulkBarcodeTimeoutRefs.current[idx]);
+      }
       lookupBarcodeInfo(bulkRows[idx].barcode, true, idx);
     }
   };
@@ -838,7 +874,7 @@ export default function Dashboard({ token, user }) {
     <div className="space-y-8 text-white min-h-[calc(100vh-80px)] pb-12">
       
       {/* Sub tabs navigation */}
-      <div className="flex border-b border-slate-800 flex-wrap gap-1 no-print">
+      <div className="flex border-b border-slate-800 overflow-x-auto whitespace-nowrap flex-nowrap scrollbar-none pb-2 gap-1 no-print">
         <button
           onClick={() => setActiveTab('analytics')}
           className={`pb-4 px-6 font-bold text-sm transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
@@ -1199,11 +1235,11 @@ export default function Dashboard({ token, user }) {
                 <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
                   <th className="py-4 px-4 w-12">#</th>
                   <th className="py-4 px-4">Nomi</th>
-                  <th className="py-4 px-4">Shtrix-kod</th>
-                  <th className="py-4 px-4 text-right">Tannarx</th>
+                  <th className="py-4 px-4 hidden sm:table-cell">Shtrix-kod</th>
+                  <th className="py-4 px-4 text-right hidden md:table-cell">Tannarx</th>
                   <th className="py-4 px-4 text-right">Sotuv Narxi</th>
-                  <th className="py-4 px-4 text-right">Foyda</th>
-                  <th className="py-4 px-4 text-right">O'lchov</th>
+                  <th className="py-4 px-4 text-right hidden md:table-cell">Foyda</th>
+                  <th className="py-4 px-4 text-right hidden sm:table-cell">O'lchov</th>
                   <th className="py-4 px-4 text-center">Amallar</th>
                 </tr>
               </thead>
@@ -1232,11 +1268,11 @@ export default function Dashboard({ token, user }) {
                           </button>
                         </td>
                         <td className="py-4 px-4 font-semibold text-white">{p.name}</td>
-                        <td className="py-4 px-4 font-mono text-slate-300">{p.barcode || '-'}</td>
-                        <td className="py-4 px-4 text-right text-slate-300">{p.costPrice.toLocaleString()} UZS</td>
+                        <td className="py-4 px-4 font-mono text-slate-300 hidden sm:table-cell">{p.barcode || '-'}</td>
+                        <td className="py-4 px-4 text-right text-slate-300 hidden md:table-cell">{p.costPrice.toLocaleString()} UZS</td>
                         <td className="py-4 px-4 text-right text-emerald-400 font-bold">{p.sellingPrice.toLocaleString()} UZS</td>
-                        <td className="py-4 px-4 text-right text-emerald-500 font-medium">+{itemProfit.toLocaleString()} UZS</td>
-                        <td className="py-4 px-4 text-right capitalize text-slate-300">{p.unit}</td>
+                        <td className="py-4 px-4 text-right text-emerald-500 font-medium hidden md:table-cell">+{itemProfit.toLocaleString()} UZS</td>
+                        <td className="py-4 px-4 text-right capitalize text-slate-300 hidden sm:table-cell">{p.unit}</td>
                         <td className="py-4 px-4">
                           <div className="flex justify-center gap-2">
                             <button
@@ -1283,9 +1319,9 @@ export default function Dashboard({ token, user }) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
-                  <th className="py-4 px-4">Sana</th>
+                  <th className="py-4 px-4 hidden sm:table-cell">Sana</th>
                   <th className="py-4 px-4">Chek raqami</th>
-                  <th className="py-4 px-4">Sotuvchi</th>
+                  <th className="py-4 px-4 hidden md:table-cell">Sotuvchi</th>
                   <th className="py-4 px-4">Xaridor</th>
                   <th className="py-4 px-4">To'lov turi</th>
                   <th className="py-4 px-4 text-right">Summa UZS</th>
@@ -1300,9 +1336,9 @@ export default function Dashboard({ token, user }) {
                 ) : (
                   sales.map(s => (
                     <tr key={s.id} className="hover:bg-slate-950/20 transition-colors">
-                      <td className="py-4 px-4 text-slate-450">{new Date(s.createdAt).toLocaleString('uz-UZ')}</td>
+                      <td className="py-4 px-4 text-slate-450 hidden sm:table-cell">{new Date(s.createdAt).toLocaleString('uz-UZ')}</td>
                       <td className="py-4 px-4 font-mono font-semibold text-white">{s.receiptNumber}</td>
-                      <td className="py-4 px-4 text-slate-300">{s.cashier?.fullName}</td>
+                      <td className="py-4 px-4 text-slate-300 hidden md:table-cell">{s.cashier?.fullName}</td>
                       <td className="py-4 px-4 text-slate-350">{s.customerName}</td>
                       <td className="py-4 px-4 text-xs font-semibold capitalize">
                         <span className={`px-2 py-0.5 rounded-full ${
@@ -1365,10 +1401,10 @@ export default function Dashboard({ token, user }) {
                 <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
                   <th className="py-4 px-4 w-10">#</th>
                   <th className="py-4 px-4">Xaridor</th>
-                  <th className="py-4 px-4 text-center">Xaridlar</th>
-                  <th className="py-4 px-4">Oxirgi xarid</th>
+                  <th className="py-4 px-4 text-center hidden sm:table-cell">Xaridlar</th>
+                  <th className="py-4 px-4 hidden sm:table-cell">Oxirgi xarid</th>
                   <th className="py-4 px-4 text-right">Qolgan qarz</th>
-                  <th className="py-4 px-4 text-center" style={{minWidth: '280px'}}>To'lov</th>
+                  <th className="py-4 px-4 text-center" style={{minWidth: '240px'}}>To'lov</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850 text-sm">
@@ -1389,8 +1425,8 @@ export default function Dashboard({ token, user }) {
                           <div className="font-semibold text-white capitalize">{d.customerName}</div>
                           <div className="text-xs text-slate-500">{d.cashierName}</div>
                         </td>
-                        <td className="py-4 px-4 text-center text-slate-300 font-bold">{d.salesCount} ta</td>
-                        <td className="py-4 px-4 text-slate-400 text-xs">
+                        <td className="py-4 px-4 text-center text-slate-300 font-bold hidden sm:table-cell">{d.salesCount} ta</td>
+                        <td className="py-4 px-4 text-slate-400 text-xs hidden sm:table-cell">
                           {new Date(d.lastSaleDate).toLocaleString('uz-UZ')}
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -1491,17 +1527,42 @@ export default function Dashboard({ token, user }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Print Receipt</label>
-                <input type="checkbox" checked={printReceipt} onChange={e => setPrintReceipt(e.target.checked)} />
+                <label className="block text-sm font-medium text-slate-400 mb-2">Sotuvdan keyin chek chiqarish</label>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printReceipt}
+                    onChange={e => setPrintReceipt(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-checked:after:bg-white"></div>
+                  <span className="ml-3 text-sm font-semibold text-slate-300">{printReceipt ? "Faol" : "Faol emas"}</span>
+                </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Receipt Width</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-slate-400 mb-1">Chek o'lchami (Kengligi)</label>
+                <select
                   value={receiptWidth}
                   onChange={e => setReceiptWidth(e.target.value)}
                   className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-md text-white focus:outline-none focus:border-emerald-500"
-                />
+                >
+                  <option value="80mm">80 mm (Standart)</option>
+                  <option value="58mm">58 mm</option>
+                  <option value="56mm">56 mm</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Yorliq (Etiketka) o'lchami</label>
+                <select
+                  value={labelSize}
+                  onChange={e => setLabelSize(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded-md text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="40x30mm">40 x 30 mm (Standart)</option>
+                  <option value="30x20mm">30 x 20 mm</option>
+                  <option value="43x25mm">43 x 25 mm</option>
+                  <option value="58x40mm">58 x 40 mm</option>
+                </select>
               </div>
               {/* New Telegram fields */}
               <div>

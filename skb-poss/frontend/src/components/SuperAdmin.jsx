@@ -54,7 +54,47 @@ export default function SuperAdmin({ token, user }) {
     return JSON.parse(localStorage.getItem('callCenterInfo') || 'null') || { ...DEFAULT_CALL_CENTER };
   });
 
+  const [globalBarcodes, setGlobalBarcodes] = useState([]);
+  const [filteredBarcodes, setFilteredBarcodes] = useState([]);
+  const [barcodeSearch, setBarcodeSearch] = useState('');
+  const [barcodesLoading, setBarcodesLoading] = useState(false);
+
   useEffect(() => { fetchAllUsers(); }, []);
+
+  useEffect(() => {
+    if (activeTab === 'barcodes') {
+      fetchGlobalBarcodes();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!barcodeSearch.trim()) { setFilteredBarcodes(globalBarcodes); return; }
+    const q = barcodeSearch.toLowerCase();
+    setFilteredBarcodes(globalBarcodes.filter(b => 
+      b.name.toLowerCase().includes(q) || 
+      b.barcode.includes(q)
+    ));
+  }, [barcodeSearch, globalBarcodes]);
+
+  const fetchGlobalBarcodes = async () => {
+    setBarcodesLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/products/global-barcodes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGlobalBarcodes(data);
+        setFilteredBarcodes(data);
+      } else {
+        notify('error', data.error);
+      }
+    } catch {
+      notify('error', 'Shtrix-kodlarni yuklashda xatolik yuz berdi');
+    } finally {
+      setBarcodesLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!searchQuery.trim()) { setFiltered(users); return; }
@@ -167,6 +207,66 @@ export default function SuperAdmin({ token, user }) {
     notify('success', 'Call center ma\'lumotlari saqlandi!');
   };
 
+  const getProductCategory = (name) => {
+    const n = name.toLowerCase();
+    if (n.includes('ruchka') || n.includes('daftar') || n.includes('papka') || n.includes('kley') || n.includes('yelim') || n.includes('qalam') || n.includes('o\'chirg\'ich') || n.includes('qalamtarosh') || n.includes('bloknot') || n.includes('albom') || n.includes('stapler') || n.includes('skrepka') || n.includes('korrektor') || n.includes('lenta') || n.includes('kalkulyator') || n.includes('qaychi') || n.includes('tsirkul') || n.includes('marker') || n.includes('skotch') || n.includes('fayl') || n.includes('penal') || n.includes('qog\'oz') || n.includes('double a') || n.includes('svetocopy')) {
+      return 'Kantselyariya tovarlari';
+    }
+    if (n.includes('coca-cola') || n.includes('pepsi') || n.includes('cola') || n.includes('fanta') || n.includes('sprite') || n.includes('adrenaline') || n.includes('flash') || n.includes('red bull') || n.includes('gorilla') || n.includes('pivo') || n.includes('sarbast') || n.includes('tuborg') || n.includes('carlsberg') || n.includes('heineken') || n.includes('baltika') || n.includes('aroq') || n.includes('qoratosh') || n.includes('whiskey') || n.includes('vodka') || n.includes('absolut') || n.includes('jack daniel')) {
+      return 'Energetik, alkogol va salqin ichimliklar';
+    }
+    if (n.includes('safeguard') || n.includes('duru') || n.includes('shampun') || n.includes('elseve') || n.includes('balzam') || n.includes('jesco') || n.includes('else') || n.includes('fax') || n.includes('dove') || n.includes('clear')) {
+      if (n.includes('tozalash') || n.includes('yuvish') || n.includes('musaffo') || n.includes('hashorat') || n.includes('kemuruvchi')) {
+        // Fall through to chemical filters
+      } else {
+        return 'Sovunlar va shampunlar (Jesco, Else)';
+      }
+    }
+    if (n.includes('domestos') || n.includes('cif') || n.includes('muscle') || n.includes('sanita') || n.includes('tozalash') || n.includes('yuvish vositasi') || n.includes('ariel') || n.includes('persil') || n.includes('tide') || n.includes('bingo') || n.includes('kir yuvish') || n.includes('yuvish kukuni') || n.includes('yuvish geli') || n.includes('kapsula') || n.includes('meyfu') || n.includes('aprel') || n.includes('soda') || n.includes('belizna') || n.includes('abeztini')) {
+      return 'Tozalash va yuvish vositalari (Maishiy kimyo)';
+    }
+    if (n.includes('poyabzal') || n.includes('erdal') || n.includes('show') || n.includes('salton') || n.includes('calgon') || n.includes('antinakip') || n.includes('choynaklar uchun') || n.includes('topper')) {
+      return 'Poyabzal parvarishi va maishiy texnika vositalari';
+    }
+    if (n.includes('finish') || n.includes('idish yuvish')) {
+      return 'Idish yuvish mashinalari uchun vositalar';
+    }
+    if (n.includes('musaffolashtir') || n.includes('glade') || n.includes('air wick') || n.includes('havo spreyi') || n.includes('hashorat') || n.includes('rodent') || n.includes('raid') || n.includes('raptor') || n.includes('kemuruvchi') || n.includes('zahar')) {
+      return 'Havo musaffolashtirgichlar va hashorat vositalari';
+    }
+    if (n.includes('sut') || n.includes('non') || n.includes('buxanka') || n.includes('patir')) {
+      return 'Sut va non mahsulotlari';
+    }
+    if (n.includes('taglik') || n.includes('huggies') || n.includes('pampers') || n.includes('evy baby') || n.includes('molfix') || n.includes('sleepy')) {
+      return 'Bolalar tagliklari (Pampers, Huggies)';
+    }
+    if (n.includes('muzqaymoq') || n.includes('plombir') || n.includes('magnum') || n.includes('cornetto') || n.includes('panda') || n.includes('snetok') || n.includes('ekzo') || n.includes('ribbon') || n.includes('zayats')) {
+      return 'Muzqaymoqlar';
+    }
+    if (n.includes('kolbasa') || n.includes('indeyka') || n.includes('tushonka') || n.includes('sardina') || n.includes('goroshek') || n.includes('kukuruza') || n.includes('kilka') || n.includes('shprot') || n.includes('servelat') || n.includes('saira')) {
+      return 'Konserva va kolbasa (Indeyka)';
+    }
+    if (n.includes('valik') || n.includes('cho\'tka') || n.includes('kraska') || n.includes('emulsiya') || n.includes('lak') || n.includes('rastvoritel') || n.includes('razbavitel') || n.includes('pf-115') || n.includes('gruntovka') || n.includes('rotband') || n.includes('uzcolor')) {
+      return 'Qurilish mahsulotlari (Hayat Birjasi)';
+    }
+    if (n.includes('kent') || n.includes('pall mall') || n.includes('parlament') || n.includes('sigaret') || n.includes('tamaki') || n.includes('l&m') || n.includes('winston') || n.includes('esse')) {
+      return 'Tamaki mahsulotlari';
+    }
+    if (n.includes('kasha') || n.includes('bo\'tqa') || n.includes('nestle') || n.includes('humana') || n.includes('nutrilak')) {
+      return 'Bolalar kashalari';
+    }
+    if (n.includes('un ') || n.includes('uni') || n.includes('makfa') || n.includes('bug\'doy uni')) {
+      return 'Un va don mahsulotlari (Pachka unlar)';
+    }
+    if (n.includes('chips') || n.includes('lays') || n.includes('suxarik') || n.includes('kirieshki') || n.includes('voronsovskie')) {
+      return 'Chipslar va suxariklar';
+    }
+    if (n.includes('karta') || n.includes('dbk') || n.includes('o\'yin kartalari')) {
+      return 'O\'yin kartalari (DBK)';
+    }
+    return 'Santexnika va boshqalar';
+  };
+
   const getDaysLeft = (createdAt) => {
     const diff = 30 - (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
     return Math.max(0, Math.ceil(diff));
@@ -196,9 +296,10 @@ export default function SuperAdmin({ token, user }) {
       </div>
 
       {/* Tab nav */}
-      <div className="flex border-b border-slate-800 gap-1">
+      <div className="flex border-b border-slate-800 overflow-x-auto whitespace-nowrap flex-nowrap scrollbar-none pb-2 gap-1 no-print">
         {[
           { id: 'users', label: 'Foydalanuvchilar', icon: <Users size={15} /> },
+          { id: 'barcodes', label: 'Tizim Shtrix-kodlari', icon: <Globe size={15} /> },
           { id: 'settings', label: 'Mening Sozlamalarim', icon: <Settings size={15} /> },
         ].map(tab => (
           <button
@@ -344,6 +445,85 @@ export default function SuperAdmin({ token, user }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 3: SYSTEM BARCODES ────────────────────────────────────────── */}
+      {activeTab === 'barcodes' && (
+        <div className="space-y-6">
+          {/* Search bar */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 pointer-events-none"><Search size={17} /></span>
+            <input
+              type="text"
+              placeholder="Shtrix-kod yoki mahsulot nomi bo'yicha qidirish..."
+              value={barcodeSearch}
+              onChange={e => setBarcodeSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-slate-900/60 border border-slate-800 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-all"
+            />
+            {barcodeSearch && (
+              <button onClick={() => setBarcodeSearch('')} className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-white cursor-pointer"><X size={15} /></button>
+            )}
+          </div>
+
+          {barcodesLoading ? (
+            <div className="text-center py-12 text-slate-500">Shtrix-kodlar yuklanmoqda...</div>
+          ) : filteredBarcodes.length === 0 ? (
+            <div className="text-center py-16 text-slate-500">
+              <Globe size={48} className="mx-auto mb-4 stroke-[1]" />
+              <p>Qidiruv bo'yicha hech qanday shtrix-kod topilmadi</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Grouping barcodes dynamically by category */}
+              {(() => {
+                const groups = {};
+                filteredBarcodes.forEach(item => {
+                  const cat = getProductCategory(item.name);
+                  if (!groups[cat]) groups[cat] = [];
+                  groups[cat].push(item);
+                });
+
+                return Object.keys(groups).sort().map(catName => (
+                  <div key={catName} className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                      <h3 className="font-black text-slate-200 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse" />
+                        {catName}
+                      </h3>
+                      <span className="text-xs bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded-full">
+                        {groups[catName].length} ta mahsulot
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {groups[catName].map(item => (
+                        <div key={item.barcode} className="bg-slate-950/40 border border-slate-800/85 p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/40 hover:bg-slate-950/60 transition-all group">
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-mono font-bold text-purple-400 group-hover:text-purple-300 transition-colors">
+                                {item.barcode}
+                              </span>
+                              <span className="text-[10px] bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                                Tizim mahsuloti
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
+                              {item.name}
+                            </h4>
+                          </div>
+                          <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px] text-slate-500">
+                            <span>Status: Faol</span>
+                            <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>

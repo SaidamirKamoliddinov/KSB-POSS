@@ -21,7 +21,7 @@ export default function CallCenter() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-5 right-5 z-[800] group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-600/30 transition-all cursor-pointer no-print"
+        className="fixed bottom-20 sm:bottom-5 right-5 z-[800] group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-2xl shadow-xl shadow-emerald-600/30 transition-all cursor-pointer no-print"
         title="Call Center"
       >
         <Headphones size={18} />
@@ -31,7 +31,7 @@ export default function CallCenter() {
 
       {/* Popup card */}
       {open && (
-        <div className="fixed bottom-20 right-5 z-[800] w-80 bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl overflow-hidden no-print animate-in">
+        <div className="fixed bottom-36 sm:bottom-20 right-5 z-[800] w-80 bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl overflow-hidden no-print animate-in">
           {/* Header */}
           <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
