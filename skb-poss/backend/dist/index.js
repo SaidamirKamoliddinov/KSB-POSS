@@ -88,10 +88,15 @@ app.delete('/api/products/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authori
 // ─── SALES ─────────────────────────────────────────────────────────────────────
 app.post('/api/sales', auth_js_1.authenticateJWT, sale_controller_js_1.createSale);
 app.get('/api/sales', auth_js_1.authenticateJWT, sale_controller_js_1.getSales);
+app.get('/api/sales/archive', auth_js_1.authenticateJWT, sale_controller_js_1.getSalesArchive);
+app.post('/api/sales/archive/clear', auth_js_1.authenticateJWT, sale_controller_js_1.clearSalesArchive);
 app.get('/api/sales/:id', auth_js_1.authenticateJWT, sale_controller_js_1.getSaleById);
 app.delete('/api/sales/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), sale_controller_js_1.deleteSale);
 app.patch('/api/sales/:id/pay-debt', auth_js_1.authenticateJWT, sale_controller_js_1.payDebt);
 app.post('/api/sales/clear-debt', auth_js_1.authenticateJWT, sale_controller_js_1.clearCustomerDebt);
+// ─── SHOP SETTINGS ─────────────────────────────────────────────────────────────
+app.get('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.getShopSettings);
+app.put('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.updateShopSettings);
 // ─── REPORTS ───────────────────────────────────────────────────────────────────
 app.get('/api/reports/dashboard', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), report_controller_js_1.getDashboardStats);
 // ─── HEALTH ────────────────────────────────────────────────────────────────────

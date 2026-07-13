@@ -17,7 +17,8 @@ import {
 } from 'chart.js';
 import { 
   TrendingUp, DollarSign, Package, ShoppingBag, AlertTriangle, 
-  Trash2, Edit, Plus, X, Settings, FileText, Lock, Printer, Eye, EyeOff, Table, Search
+  Trash2, Edit, Plus, X, Settings, FileText, Lock, Printer, Eye, EyeOff, Table, Search,
+  Archive, FolderArchive, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // Register Chart.js components
@@ -77,10 +78,16 @@ export default function Dashboard({ token, user }) {
   const [showProductModal, setShowProductModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
 
-  // Bulk products list state for table insertion
-  const [bulkRows, setBulkRows] = useState([
-    { name: '', barcode: '', costPrice: '', sellingPrice: '', stock: '999999', unit: 'dona' }
-  ]);
+  // PWA & Archive States
+  const [archiveSales, setArchiveSales] = useState([]);
+  const [showArchiveClearModal, setShowArchiveClearModal] = useState(false);
+  const [archiveClearPassword, setArchiveClearPassword] = useState('');
+  const [expandedMonths, setExpandedMonths] = useState(new Set());
+
+  // Bulk products list state for table insertion (initially 10 rows)
+  const createEmptyBulkRow = () => ({ name: '', barcode: '', costPrice: '', sellingPrice: '', stock: '999999', unit: 'dona' });
+  const create10EmptyBulkRows = () => Array.from({ length: 10 }, createEmptyBulkRow);
+  const [bulkRows, setBulkRows] = useState(create10EmptyBulkRows());
 
   // Settings State
   const [receiptWidth, setReceiptWidth] = useState('80mm');
@@ -99,48 +106,179 @@ export default function Dashboard({ token, user }) {
     fetchStats();
     fetchProducts();
     fetchSales();
+    fetchArchiveSales();
     loadShopSettings();
   }, []);
 
-  // (activePrintLabel is no longer used — openLabelPrintWindow is called directly)
-
-  const loadShopSettings = () => {
-    const saved = JSON.parse(localStorage.getItem('shopSettings')) || {
-      shopName: "KSB POSS DO'KONI",
-      address: "Toshkent sh., Chilonzor tumani",
-      phone: "+998 (99) 123-45-67",
-      printReceipt: true,
-      receiptWidth: '80mm',
-      tgBotToken: '',
-      tgChatId: ''
-    };
-    setShopName(saved.shopName);
-    setAddress(saved.address);
-    setPhone(saved.phone);
-    setPrintReceipt(saved.printReceipt !== false);
-    setReceiptWidth(saved.receiptWidth || '80mm');
-    setTgBotToken(saved.tgBotToken || '');
-    setTgChatId(saved.tgChatId || '');
+  // ─── ARCHIVE SALES METHODS ───────────────────────────────────────────────────
+  const fetchArchiveSales = async () => {
+    try {
+      const res = await fetch(`${API_URL}/sales/archive`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setArchiveSales(data);
+      }
+    } catch (err) {
+      console.error('fetchArchiveSales error:', err);
+    }
   };
 
-  const handleSaveSettings = (e) => {
+  const handleClearArchive = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    const shopSettings = {
-      shopName: shopName.trim(),
-      address: address.trim(),
-      phone: phone.trim(),
-      printReceipt,
-      receiptWidth,
-      tgBotToken: tgBotToken.trim(),
-      tgChatId: tgChatId.trim()
+    try {
+      const res = await fetch(`${API_URL}/sales/archive/clear`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: archiveClearPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Arxivni tozalashda xatolik yuz berdi');
+
+      setSuccess(data.message || 'Arxiv muvaffaqiyatli tozalandi!');
+      setArchiveClearPassword('');
+      setShowArchiveClearModal(false);
+      fetchArchiveSales();
+      fetchStats();
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (err) {
+      setError(err.message || 'Xatolik yuz berdi');
+      setTimeout(() => setError(''), 2000);
+    }
+  };
+
+  const getGroupedArchiveSales = () => {
+    const groups = {};
+    const monthsUz = {
+      '01': 'Yanvar', '02': 'Fevral', '03': 'Mart', '04': 'Aprel',
+      '05': 'May', '06': 'Iyun', '07': 'Iyul', '08': 'Avgust',
+      '09': 'Sentabr', '10': 'Oktabr', '11': 'Noyabr', '12': 'Dekabr'
     };
 
-    localStorage.setItem('shopSettings', JSON.stringify(shopSettings));
-    setSuccess('Sozlamalar muvaffaqiyatli saqlandi!');
-    setTimeout(() => setSuccess(''), 1500);
+    archiveSales.forEach(sale => {
+      const dt = new Date(sale.createdAt);
+      const year = dt.getFullYear();
+      const monthNum = String(dt.getMonth() + 1).padStart(2, '0');
+      const monthName = monthsUz[monthNum] || 'Noma\'lum';
+      const groupKey = `${year}-${monthNum}`;
+      const groupLabel = `${monthName} ${year}`;
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          label: groupLabel,
+          sales: [],
+          totalAmount: 0,
+          totalDiscount: 0
+        };
+      }
+
+      groups[groupKey].sales.push(sale);
+      groups[groupKey].totalAmount += sale.totalAmount;
+      groups[groupKey].totalDiscount += sale.discountAmount;
+    });
+
+    return Object.keys(groups)
+      .sort((a, b) => b.localeCompare(a))
+      .map(key => ({
+        key,
+        ...groups[key]
+      }));
+  };
+
+  // (activePrintLabel is no longer used — openLabelPrintWindow is called directly)
+
+  const loadShopSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/shop`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShopName(data.name || '');
+        setAddress(data.address || '');
+        setPhone(data.phone || '');
+        setTgBotToken(data.tgBotToken || '');
+        setTgChatId(data.tgChatId || '');
+
+        const localSaved = JSON.parse(localStorage.getItem('shopSettings')) || {};
+        localStorage.setItem('shopSettings', JSON.stringify({
+          ...localSaved,
+          shopName: data.name,
+          address: data.address,
+          phone: data.phone,
+          tgBotToken: data.tgBotToken,
+          tgChatId: data.tgChatId
+        }));
+      } else {
+        const saved = JSON.parse(localStorage.getItem('shopSettings')) || {
+          shopName: "KSB POSS DO'KONI",
+          address: "Toshkent sh., Chilonzor tumani",
+          phone: "+998 (99) 123-45-67",
+          printReceipt: true,
+          receiptWidth: '80mm',
+          tgBotToken: '',
+          tgChatId: ''
+        };
+        setShopName(saved.shopName);
+        setAddress(saved.address);
+        setPhone(saved.phone);
+        setPrintReceipt(saved.printReceipt !== false);
+        setReceiptWidth(saved.receiptWidth || '80mm');
+        setTgBotToken(saved.tgBotToken || '');
+        setTgChatId(saved.tgChatId || '');
+      }
+    } catch (err) {
+      console.error('loadShopSettings error:', err);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch(`${API_URL}/shop`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          shopName: shopName.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
+          tgBotToken: tgBotToken.trim(),
+          tgChatId: tgChatId.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sozlamalarni saqlashda xatolik');
+
+      const shopSettings = {
+        shopName: data.name,
+        address: data.address,
+        phone: data.phone,
+        printReceipt,
+        receiptWidth,
+        tgBotToken: data.tgBotToken,
+        tgChatId: data.tgChatId
+      };
+
+      localStorage.setItem('shopSettings', JSON.stringify(shopSettings));
+      setSuccess('Sozlamalar muvaffaqiyatli saqlandi!');
+      setTimeout(() => setSuccess(''), 1500);
+    } catch (err) {
+      setError(err.message || 'Xatolik yuz berdi');
+      setTimeout(() => setError(''), 2000);
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -383,48 +521,51 @@ export default function Dashboard({ token, user }) {
 
       return `
         <div style="
-          width:40mm; height:30mm; padding:0; box-sizing:border-box;
-          background:#fff; color:#111; overflow:hidden;
+          width:40mm; height:30mm; padding:1.5mm; box-sizing:border-box;
+          background:#fff; color:#0f172a; overflow:hidden;
           page-break-after:always; page-break-inside:avoid;
-          display:flex; flex-direction:column;
-          border:0.5pt solid #ddd;
+          display:flex; flex-direction:column; justify-content:space-between;
+          border:2px solid #0f172a;
+          border-radius:3mm;
           font-family:'Arial',sans-serif;
         ">
-          <!-- Header band -->
-          <div style="background:#111;color:#fff;padding:0.8mm 2mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <div style="font-size:5.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%;">
-              ${shopDisplayName}
+          <!-- Shop Header (Deluxe styling) -->
+          <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5mm; display:flex; flex-direction:column; align-items:center; flex-shrink:0;">
+            <div style="font-size:7px; font-weight:800; text-transform:uppercase; color:#0f172a; letter-spacing:0.8px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">
+              ⭐ ${shopDisplayName} ⭐
             </div>
-            <div style="font-size:4.5px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:33%;text-align:right;">
+            <div style="font-size:4.5px; color:#64748b; font-weight:500; letter-spacing:0.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; margin-top:0.2mm;">
               ${shopAddr}
             </div>
           </div>
 
-          <!-- Product name -->
-          <div style="padding:1mm 2mm 0.5mm 2mm;flex-shrink:0;">
-            <div style="font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.2px;line-height:1.1;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${prod.name}
+          <!-- Product Info & Price Row -->
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:1.5mm; margin: 1mm 0; flex-shrink:0;">
+            <!-- Product Name -->
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">
+              <span style="font-size:4.5px; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.5px; margin-bottom:0.3mm;">Mahsulot</span>
+              <div style="font-size:7.5px; font-weight:800; color:#0f172a; line-height:1.2; word-break:break-all; max-height:7.5mm; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+                ${prod.name}
+              </div>
+            </div>
+            
+            <!-- Deluxe Price Badge -->
+            <div style="background:#0f172a; color:#fff; border-radius:1.5mm; padding: 1mm 1.8mm; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; border: 1px solid #10b981;">
+              <span style="font-size:3.5px; font-weight:700; text-transform:uppercase; color:#10b981; letter-spacing:0.5px; margin-bottom:0.2mm;">Narxi</span>
+              <div style="display:flex; align-items:baseline; gap:0.3mm;">
+                <span style="font-size:10.5px; font-weight:900; color:#fff; letter-spacing:-0.2px;">${prod.sellingPrice.toLocaleString()}</span>
+                <span style="font-size:4.5px; font-weight:700; color:#10b981;">sum</span>
+              </div>
             </div>
           </div>
 
-          <!-- Price block -->
-          <div style="padding:0 2mm 1mm 2mm;display:flex;align-items:baseline;gap:1mm;flex-shrink:0;">
-            <div style="font-size:15px;font-weight:900;color:#111;line-height:1;letter-spacing:-0.5px;">
-              ${prod.sellingPrice.toLocaleString()}
-            </div>
-            <div style="font-size:7px;font-weight:700;color:#444;">UZS</div>
-          </div>
-
-          <!-- Divider -->
-          <div style="height:0.5pt;background:#ccc;margin:0 2mm;flex-shrink:0;"></div>
-
-          <!-- Barcode -->
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.5mm 2mm 0 2mm;">
-            <div style="display:flex;align-items:stretch;height:5.5mm;width:100%;justify-content:center;gap:0;">
+          <!-- Barcode (Crisp & Premium) -->
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex-shrink:0; padding-top:0.5mm;">
+            <div style="display:flex; align-items:stretch; height:5.2mm; width:88%; justify-content:center; gap:0; opacity:0.95;">
               ${bars}
             </div>
-            <div style="font-size:5.5px;font-family:'Courier New',monospace;letter-spacing:0.8px;color:#333;margin-top:0.5mm;">
-              ${barcode}
+            <div style="font-size:5px; font-family:'Courier New', monospace; font-weight:bold; letter-spacing:0.6px; color:#475569; margin-top:0.4mm; text-align:center;">
+              *${barcode}*
             </div>
           </div>
         </div>
@@ -486,7 +627,7 @@ export default function Dashboard({ token, user }) {
 
   // Bulk add actions
   const addBulkRow = () => {
-    setBulkRows([...bulkRows, { name: '', barcode: '', costPrice: '', sellingPrice: '', stock: '999999', unit: 'dona' }]);
+    setBulkRows([...bulkRows, ...create10EmptyBulkRows()]);
   };
 
   const removeBulkRow = (index) => {
@@ -533,7 +674,7 @@ export default function Dashboard({ token, user }) {
 
       setSuccess(`${data.created} ta mahsulot muvaffaqiyatli qo'shildi!`);
       setShowBulkModal(false);
-      setBulkRows([{ name: '', barcode: '', costPrice: '', sellingPrice: '', stock: '999999', unit: 'dona' }]);
+      setBulkRows(create10EmptyBulkRows());
       fetchProducts();
       fetchStats();
       setTimeout(() => setSuccess(''), 1500);
@@ -803,27 +944,117 @@ export default function Dashboard({ token, user }) {
             </div>
           </div>
 
-          {/* Low stock warnings */}
+          {/* Monthly Archives (Eski oylar arxivi) */}
           <div className="grid grid-cols-1 gap-6">
-            <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-md">
-              <h3 className="font-bold text-base mb-4 text-white flex items-center gap-2">
-                <AlertTriangle size={18} className="text-amber-500" />
-                <span>Tugayotgan mahsulotlar</span>
-              </h3>
+            <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-md space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <h3 className="font-bold text-base text-white flex items-center gap-2">
+                  <FolderArchive size={18} className="text-emerald-400" />
+                  <span>Eski oylar arxivi (30 kundan oshgan hisobotlar)</span>
+                </h3>
+                {archiveSales.length > 0 && (
+                  <button
+                    onClick={() => { setShowArchiveClearModal(true); }}
+                    className="px-4 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/30 hover:border-red-800/40 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                  >
+                    <Trash2 size={13} />
+                    <span>Arxivni butunlay tozalash</span>
+                  </button>
+                )}
+              </div>
+
               <div className="space-y-3">
-                {stats.lowStockProducts.length === 0 ? (
-                  <p className="text-sm text-slate-500">Kam sonli mahsulotlar yo'q</p>
+                {archiveSales.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-950/30 border border-slate-800/50 rounded-2xl">
+                    <Archive size={28} className="mx-auto text-slate-600 mb-2 opacity-50" />
+                    <p className="text-sm text-slate-500">Hozircha arxivlangan hisobotlar mavjud emas.</p>
+                    <p className="text-[10px] text-slate-600 mt-1">30 kundan oshgan cheklar avtomatik ravishda shu yerga o'tadi.</p>
+                  </div>
                 ) : (
-                  stats.lowStockProducts.map(p => (
-                    <div key={p.id} className="flex justify-between items-center p-3 bg-slate-950/40 border border-slate-855 rounded-2xl">
-                      <div>
-                        <span className="text-sm font-semibold block">{p.name}</span>
+                  getGroupedArchiveSales().map(group => {
+                    const isExpanded = expandedMonths.has(group.key);
+                    return (
+                      <div key={group.key} className="border border-slate-800 rounded-2xl bg-slate-950/20 overflow-hidden transition-all duration-300">
+                        {/* Group Header */}
+                        <div
+                          onClick={() => {
+                            setExpandedMonths(prev => {
+                              const next = new Set(prev);
+                              if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
+                              return next;
+                            });
+                          }}
+                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-900/30 select-none transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-slate-200">{group.label}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                              {group.sales.length} ta chek
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className="text-xs text-slate-400 block">Jami savdo:</span>
+                              <span className="text-sm font-bold text-emerald-400">{group.totalAmount.toLocaleString()} UZS</span>
+                            </div>
+                            {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                          </div>
+                        </div>
+
+                        {/* Group Body */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-800/80 p-4 bg-slate-950/40 space-y-3 transition-all">
+                            {/* Inner sales list */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                    <th className="py-2.5 px-3">Chek №</th>
+                                    <th className="py-2.5 px-3">Sana</th>
+                                    <th className="py-2.5 px-3">Kassir</th>
+                                    <th className="py-2.5 px-3">Mijoz</th>
+                                    <th className="py-2.5 px-3 text-right">Chegir</th>
+                                    <th className="py-2.5 px-3">Turi</th>
+                                    <th className="py-2.5 px-3 text-right">Summa</th>
+                                    <th className="py-2.5 px-3 text-center">Batafsil</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {group.sales.map(sale => (
+                                    <tr key={sale.id} className="hover:bg-slate-900/30 border-b border-slate-800/40 transition-colors">
+                                      <td className="py-2.5 px-3 font-medium text-slate-300">{sale.receiptNumber}</td>
+                                      <td className="py-2.5 px-3 text-slate-400">{new Date(sale.createdAt).toLocaleString('uz-UZ').slice(0, 16)}</td>
+                                      <td className="py-2.5 px-3 text-slate-400">{sale.cashier.fullName}</td>
+                                      <td className="py-2.5 px-3 text-slate-400">{sale.customerName}</td>
+                                      <td className="py-2.5 px-3 text-right text-amber-500 font-medium">-{sale.discountAmount.toLocaleString()} UZS</td>
+                                      <td className="py-2.5 px-3">
+                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                          sale.paymentType === 'CASH' 
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                            : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                        }`}>
+                                          {sale.paymentType === 'CASH' ? 'NAQD' : 'KARTA'}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right font-bold text-slate-200">{sale.totalAmount.toLocaleString()} UZS</td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <button
+                                          onClick={() => { setSelectedSaleDetail(sale); }}
+                                          className="text-emerald-500 hover:text-emerald-400 cursor-pointer font-bold"
+                                        >
+                                          Ko'rish
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <span className="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-1 rounded-xl font-bold">
-                        {p.stock} {p.unit}
-                      </span>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -861,7 +1092,7 @@ export default function Dashboard({ token, user }) {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setBulkRows([{ name: '', barcode: '', costPrice: '', sellingPrice: '', stock: '999999', unit: 'dona' }]); setShowBulkModal(true); }}
+                onClick={() => { setBulkRows(create10EmptyBulkRows()); setShowBulkModal(true); }}
                 className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl font-semibold flex items-center gap-2 cursor-pointer transition-colors text-xs"
               >
                 <Table size={16} />
@@ -1649,8 +1880,58 @@ export default function Dashboard({ token, user }) {
             </div>
           </div>
         </div>
-      )}
+      {/* 4. ARCHIVE CLEAR MODAL */}
+      {showArchiveClearModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 no-print">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-4">
+            <button 
+              onClick={() => { setShowArchiveClearModal(false); setArchiveClearPassword(''); }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <h3 className="font-bold text-lg text-white flex items-center gap-2">
+              <Trash2 className="text-red-500" size={20} />
+              <span>Arxivni tozalashni tasdiqlang</span>
+            </h3>
+            
+            <p className="text-xs text-slate-400">
+              30 kundan oshgan barcha arxivlangan cheklar butunlay o'chib ketadi! Ushbu amalni bekor qilib bo'lmaydi.
+            </p>
 
+            <form onSubmit={handleClearArchive} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs text-slate-400 font-semibold mb-2">Shaxsiy parolingizni kiriting *</label>
+                <input
+                  type="password"
+                  required
+                  value={archiveClearPassword}
+                  onChange={e => setArchiveClearPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-red-500 text-sm"
+                  placeholder="Parolingizni kiriting"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowArchiveClearModal(false); setArchiveClearPassword(''); }}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-lg shadow-red-600/20"
+                >
+                  Tasdiqlayman (O'chirish)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -74,7 +74,14 @@ export async function login(req: AuthenticatedRequest, res: Response) {
         role: user.role,
         fullName: user.fullName,
         shopId: user.shopId,
-        shopName: user.shop?.name || 'KSB Super Admin'
+        shopName: user.shop?.name || 'KSB Super Admin',
+        shop: user.shop ? {
+          name: user.shop.name,
+          address: user.shop.address,
+          phone: user.shop.phone,
+          tgBotToken: user.shop.tgBotToken || '',
+          tgChatId: user.shop.tgChatId || ''
+        } : null
       }
     });
   } catch (error: any) {
@@ -276,5 +283,51 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response) {
   } catch (error) {
     console.error('deleteUser error:', error);
     res.status(500).json({ error: 'Foydalanuvchini o\'chirishda xatolik' });
+  }
+}
+
+export async function getShopSettings(req: AuthenticatedRequest, res: Response) {
+  try {
+    const shopId = req.user?.shopId;
+    if (!shopId) {
+      return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+    }
+
+    const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+    if (!shop) {
+      return res.status(404).json({ error: 'Do\'kon topilmadi' });
+    }
+
+    res.json(shop);
+  } catch (error) {
+    console.error('getShopSettings error:', error);
+    res.status(500).json({ error: 'Sozlamalarni yuklashda xatolik' });
+  }
+}
+
+export async function updateShopSettings(req: AuthenticatedRequest, res: Response) {
+  try {
+    const shopId = req.user?.shopId;
+    if (!shopId) {
+      return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+    }
+
+    const { shopName, address, phone, tgBotToken, tgChatId } = req.body;
+
+    const updated = await prisma.shop.update({
+      where: { id: shopId },
+      data: {
+        name: shopName,
+        address,
+        phone,
+        tgBotToken: tgBotToken || "",
+        tgChatId: tgChatId || ""
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('updateShopSettings error:', error);
+    res.status(500).json({ error: 'Sozlamalarni saqlashda xatolik' });
   }
 }

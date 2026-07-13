@@ -12,6 +12,8 @@ model Shop {
   name       String
   address    String
   phone      String
+  tgBotToken String     @default("")
+  tgChatId   String     @default("")
   users      User[]
   products   Product[]
   categories Category[]

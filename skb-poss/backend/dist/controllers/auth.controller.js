@@ -9,6 +9,8 @@ exports.changePassword = changePassword;
 exports.getAllUsers = getAllUsers;
 exports.toggleBlockUser = toggleBlockUser;
 exports.deleteUser = deleteUser;
+exports.getShopSettings = getShopSettings;
+exports.updateShopSettings = updateShopSettings;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_js_1 = __importDefault(require("../db.js"));
@@ -68,7 +70,14 @@ async function login(req, res) {
                 role: user.role,
                 fullName: user.fullName,
                 shopId: user.shopId,
-                shopName: user.shop?.name || 'KSB Super Admin'
+                shopName: user.shop?.name || 'KSB Super Admin',
+                shop: user.shop ? {
+                    name: user.shop.name,
+                    address: user.shop.address,
+                    phone: user.shop.phone,
+                    tgBotToken: user.shop.tgBotToken || '',
+                    tgChatId: user.shop.tgChatId || ''
+                } : null
             }
         });
     }
@@ -252,5 +261,46 @@ async function deleteUser(req, res) {
     catch (error) {
         console.error('deleteUser error:', error);
         res.status(500).json({ error: 'Foydalanuvchini o\'chirishda xatolik' });
+    }
+}
+async function getShopSettings(req, res) {
+    try {
+        const shopId = req.user?.shopId;
+        if (!shopId) {
+            return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+        }
+        const shop = await db_js_1.default.shop.findUnique({ where: { id: shopId } });
+        if (!shop) {
+            return res.status(404).json({ error: 'Do\'kon topilmadi' });
+        }
+        res.json(shop);
+    }
+    catch (error) {
+        console.error('getShopSettings error:', error);
+        res.status(500).json({ error: 'Sozlamalarni yuklashda xatolik' });
+    }
+}
+async function updateShopSettings(req, res) {
+    try {
+        const shopId = req.user?.shopId;
+        if (!shopId) {
+            return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+        }
+        const { shopName, address, phone, tgBotToken, tgChatId } = req.body;
+        const updated = await db_js_1.default.shop.update({
+            where: { id: shopId },
+            data: {
+                name: shopName,
+                address,
+                phone,
+                tgBotToken: tgBotToken || "",
+                tgChatId: tgChatId || ""
+            }
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        console.error('updateShopSettings error:', error);
+        res.status(500).json({ error: 'Sozlamalarni saqlashda xatolik' });
     }
 }

@@ -9,6 +9,9 @@ exports.getSaleById = getSaleById;
 exports.deleteSale = deleteSale;
 exports.payDebt = payDebt;
 exports.clearCustomerDebt = clearCustomerDebt;
+exports.getSalesArchive = getSalesArchive;
+exports.clearSalesArchive = clearSalesArchive;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const db_js_1 = __importDefault(require("../db.js"));
 async function createSale(req, res) {
     try {
@@ -167,8 +170,13 @@ async function getSales(req, res) {
         if (!shopId) {
             return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
         }
+        const date30DaysAgo = new Date();
+        date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
         const sales = await db_js_1.default.sale.findMany({
-            where: { shopId },
+            where: {
+                shopId,
+                createdAt: { gte: date30DaysAgo }
+            },
             include: {
                 cashier: {
                     select: { fullName: true }
@@ -358,5 +366,79 @@ async function clearCustomerDebt(req, res) {
     catch (error) {
         console.error('clearCustomerDebt error:', error);
         res.status(500).json({ error: 'Qarzni yopishda xatolik yuz berdi' });
+    }
+}
+async function getSalesArchive(req, res) {
+    try {
+        const shopId = req.user?.shopId;
+        if (!shopId) {
+            return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+        }
+        const date30DaysAgo = new Date();
+        date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
+        // Get sales older than 30 days
+        const sales = await db_js_1.default.sale.findMany({
+            where: {
+                shopId,
+                createdAt: { lt: date30DaysAgo }
+            },
+            include: {
+                cashier: {
+                    select: { fullName: true }
+                },
+                items: {
+                    include: {
+                        product: {
+                            select: { name: true, unit: true, barcode: true }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(sales);
+    }
+    catch (error) {
+        console.error('getSalesArchive error:', error);
+        res.status(500).json({ error: 'Arxivlangan sotuvlarni yuklashda xatolik yuz berdi' });
+    }
+}
+async function clearSalesArchive(req, res) {
+    try {
+        const shopId = req.user?.shopId;
+        const userId = req.user?.id;
+        if (!shopId || !userId) {
+            return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+        }
+        const { password } = req.body;
+        if (!password) {
+            return res.status(400).json({ error: 'Shaxsiy parolingiz kiritilishi shart' });
+        }
+        // Verify user password
+        const user = await db_js_1.default.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+        }
+        const isMatch = await bcryptjs_1.default.compare(password, user.passwordHash);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Kiritilgan parol noto\'g\'ri' });
+        }
+        const date30DaysAgo = new Date();
+        date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
+        // Delete sales older than 30 days
+        const deleteResult = await db_js_1.default.sale.deleteMany({
+            where: {
+                shopId,
+                createdAt: { lt: date30DaysAgo }
+            }
+        });
+        res.json({
+            success: true,
+            message: `Arxiv muvaffaqiyatli tozalandi! ${deleteResult.count} ta chek o'chirildi.`
+        });
+    }
+    catch (error) {
+        console.error('clearSalesArchive error:', error);
+        res.status(500).json({ error: 'Arxivni tozalashda xatolik yuz berdi' });
     }
 }

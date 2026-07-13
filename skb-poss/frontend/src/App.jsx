@@ -6,7 +6,7 @@ import Receipt from './components/Receipt.jsx';
 import SuperAdmin from './components/SuperAdmin.jsx';
 import PinLock from './components/PinLock.jsx';
 import CallCenter from './components/CallCenter.jsx';
-import { LogOut, LayoutDashboard, ShoppingCart, Lock, X, Settings } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart, Lock, X, Settings, Download } from 'lucide-react';
 
 const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
@@ -43,11 +43,61 @@ export default function App() {
     };
   }, [token, resetTimer]);
 
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
+  // ── PWA Installation Listener ────────────────────────────────────────────────
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+      console.log('[KSB POSS] App installed successfully');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('[KSB POSS] User accepted install prompt');
+    }
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
+  };
+
   // ── Login / Logout ────────────────────────────────────────────────────────────
   const handleLoginSuccess = (newToken, newUser) => {
     setToken(newToken);
     setUser(newUser);
     setIsLocked(false);
+
+    // Save shop settings to localStorage dynamically on login
+    if (newUser.shop) {
+      const settings = {
+        shopName: newUser.shop.name,
+        address: newUser.shop.address,
+        phone: newUser.shop.phone,
+        tgBotToken: newUser.shop.tgBotToken || '',
+        tgChatId: newUser.shop.tgChatId || '',
+        printReceipt: true,
+        receiptWidth: '80mm'
+      };
+      localStorage.setItem('shopSettings', JSON.stringify(settings));
+    }
+
     if (newUser.role === 'SUPER_ADMIN') setActiveTab('superadmin');
     else setActiveTab('pos');
   };
@@ -55,6 +105,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('shopSettings'); // Clear settings on logout to isolate users
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     setToken(null);
     setUser(null);
@@ -143,6 +194,18 @@ export default function App() {
               {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Administrator' : 'Kassir'}
             </span>
           </div>
+
+          {/* PWA Install Button */}
+          {showInstallBtn && (
+            <button
+              onClick={handleInstallApp}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/10"
+              title="Ilovani ekranga yuklab olish"
+            >
+              <Download size={14} />
+              <span>Yuklab olish</span>
+            </button>
+          )}
 
           {/* PIN Setup button */}
           {user?.id && (

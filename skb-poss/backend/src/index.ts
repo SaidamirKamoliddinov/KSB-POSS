@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import prisma from './db.js';
 
-import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser } from './controllers/auth.controller.js';
+import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
 import { getProducts, createProduct, updateProduct, deleteProduct } from './controllers/product.controller.js';
-import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt } from './controllers/sale.controller.js';
+import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive } from './controllers/sale.controller.js';
 import { getDashboardStats } from './controllers/report.controller.js';
 import { authenticateJWT, authorizeRoles } from './middleware/auth.js';
 
@@ -89,10 +89,16 @@ app.delete('/api/products/:id', authenticateJWT, authorizeRoles('ADMIN'), delete
 // ─── SALES ─────────────────────────────────────────────────────────────────────
 app.post('/api/sales', authenticateJWT, createSale);
 app.get('/api/sales', authenticateJWT, getSales);
+app.get('/api/sales/archive', authenticateJWT, getSalesArchive);
+app.post('/api/sales/archive/clear', authenticateJWT, clearSalesArchive);
 app.get('/api/sales/:id', authenticateJWT, getSaleById);
 app.delete('/api/sales/:id', authenticateJWT, authorizeRoles('ADMIN'), deleteSale);
 app.patch('/api/sales/:id/pay-debt', authenticateJWT, payDebt);
 app.post('/api/sales/clear-debt', authenticateJWT, clearCustomerDebt);
+
+// ─── SHOP SETTINGS ─────────────────────────────────────────────────────────────
+app.get('/api/shop', authenticateJWT, getShopSettings);
+app.put('/api/shop', authenticateJWT, updateShopSettings);
 
 // ─── REPORTS ───────────────────────────────────────────────────────────────────
 app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getDashboardStats);
