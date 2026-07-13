@@ -7,6 +7,7 @@ import SuperAdmin from './components/SuperAdmin.jsx';
 import PinLock from './components/PinLock.jsx';
 import CallCenter from './components/CallCenter.jsx';
 import { LogOut, LayoutDashboard, ShoppingCart, Lock, X, Settings, Download } from 'lucide-react';
+import { API_URL } from './config.js';
 
 const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
@@ -77,6 +78,33 @@ export default function App() {
     setDeferredPrompt(null);
     setShowInstallBtn(false);
   };
+
+  // ── Sync Shop Settings from Database on Mount/Token change ───────────────────
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_URL}/shop`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          const localSaved = JSON.parse(localStorage.getItem('shopSettings')) || {};
+          const settings = {
+            ...localSaved,
+            shopName: data.name,
+            address: data.address,
+            phone: data.phone,
+            tgBotToken: data.tgBotToken || '',
+            tgChatId: data.tgChatId || '',
+            printReceipt: localSaved.printReceipt !== false,
+            receiptWidth: localSaved.receiptWidth || '80mm'
+          };
+          localStorage.setItem('shopSettings', JSON.stringify(settings));
+        }
+      })
+      .catch(err => console.error('Error syncing shop settings:', err));
+    }
+  }, [token]);
 
   // ── Login / Logout ────────────────────────────────────────────────────────────
   const handleLoginSuccess = (newToken, newUser) => {
