@@ -110,19 +110,37 @@ app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getD
 app.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok', time: new Date() }));
 
 app.get('/api/test-soliq/:barcode', async (req: any, res: any) => {
+  const results: any = {};
+  const { barcode } = req.params;
+
+  // 1. Test Soliq Tasnif
   try {
-    const { barcode } = req.params;
     const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${barcode}&size=10&page=0&lang=uz`);
     const text = await soliqResponse.text();
-    res.json({
-      status: soliqResponse.status,
-      ok: soliqResponse.ok,
-      length: text.length,
-      preview: text.substring(0, 500)
-    });
+    results.soliq = { status: soliqResponse.status, length: text.length };
   } catch (err: any) {
-    res.status(500).json({ error: err.message, stack: err.stack });
+    results.soliq = { error: err.message };
   }
+
+  // 2. Test Open Food Facts
+  try {
+    const offResponse = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}?fields=product_name`);
+    const text = await offResponse.text();
+    results.openFoodFacts = { status: offResponse.status, length: text.length };
+  } catch (err: any) {
+    results.openFoodFacts = { error: err.message };
+  }
+
+  // 3. Test UPCitemdb
+  try {
+    const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
+    const text = await upcResponse.text();
+    results.upc = { status: upcResponse.status, length: text.length };
+  } catch (err: any) {
+    results.upc = { error: err.message };
+  }
+
+  res.json(results);
 });
 
 // ─── SETUP & STATUS ────────────────────────────────────────────────────────────
