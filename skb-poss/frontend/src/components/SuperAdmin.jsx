@@ -362,7 +362,7 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('coca-cola') || n.includes('pepsi') || n.includes('cola') || n.includes('fanta') || n.includes('sprite') || n.includes('adrenaline') || n.includes('flash') || n.includes('red bull') || n.includes('gorilla') || n.includes('pivo') || n.includes('sarbast') || n.includes('tuborg') || n.includes('carlsberg') || n.includes('heineken') || n.includes('baltika') || n.includes('aroq') || n.includes('qoratosh') || n.includes('whiskey') || n.includes('vodka') || n.includes('absolut') || n.includes('jack daniel')) {
       return 'Energetik, alkogol va salqin ichimliklar';
     }
-    if (n.includes('safeguard') || n.includes('duru') || n.includes('shampun') || n.includes('elseve') || n.includes('balzam') || n.includes('jesco') || n.includes('else') || n.includes('fax') || n.includes('dove') || n.includes('clear')) {
+    if (n.includes('safeguard') || n.includes('duru') || n.includes('shampun') || n.includes('elseve') || n.includes('balzam') || n.includes('jesco') || n.includes('else') || n.includes('fax') || n.includes('dove') || n.includes('clear') || n.includes('dush geli') || n.includes('dush gel')) {
       if (n.includes('tozalash') || n.includes('yuvish') || n.includes('musaffo') || n.includes('hashorat') || n.includes('kemuruvchi')) {
         // Fall through to chemical filters
       } else {
@@ -417,7 +417,7 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('makaron') || n.includes('spagetti') || n.includes('perya') || n.includes('rojki') || n.includes('spirali') || n.includes('moy') || n.includes('sloboda') || n.includes('guruch') || n.includes('shakar') || n.includes('navat') || n.includes('choy') || n.includes('lipton')) {
       return 'Oziq-ovqat va baqqollik';
     }
-    if (n.includes('truba') || n.includes('kran') || n.includes('fiting') || n.includes('shlang') || n.includes('smesitel') || n.includes('mufta') || n.includes('dush') || n.includes('santexnika') || n.includes('bolt') || n.includes('gayka') || n.includes('rezba') || n.includes('otvod') || n.includes('troynik') || n.includes('klapan') || n.includes('ventil') || n.includes('filtr') || n.includes('sifon')) {
+    if (n.includes('truba') || n.includes('kran') || n.includes('krant') || n.includes('fiting') || n.includes('shlang') || n.includes('smesitel') || n.includes('mufta') || n.includes('dush') || n.includes('santexnika') || n.includes('bolt') || n.includes('gayka') || n.includes('rezba') || n.includes('otvod') || n.includes('troynik') || n.includes('klapan') || n.includes('ventil') || n.includes('filtr') || n.includes('sifon') || n.includes('ariston') || n.includes('boyler') || n.includes('rakovina') || n.includes('unitaz') || n.includes('vanna') || n.includes('termostat') || n.includes('manometr') || n.includes('germetik') || n.includes('fum-lenta') || n.includes('fum lenta') || n.includes('perexodnik') || n.includes('ugolnik') || n.includes('nasos') || n.includes('shpilka') || n.includes('kollektor')) {
       return 'Santexnika mahsulotlari';
     }
     return 'Boshqa tovarlar';
