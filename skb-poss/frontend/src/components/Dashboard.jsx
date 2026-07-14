@@ -751,10 +751,15 @@ export default function Dashboard({ token, user }) {
     if (barcodeTimeoutRef.current) {
       clearTimeout(barcodeTimeoutRef.current);
     }
-    if (val.trim().length >= 4) {
-      barcodeTimeoutRef.current = setTimeout(() => {
-        lookupBarcodeInfo(val.trim(), false);
-      }, 300);
+    const cleanVal = val.trim();
+    if (cleanVal.length >= 4) {
+      if (cleanVal.length === 8 || cleanVal.length === 12 || cleanVal.length === 13 || cleanVal.length === 14) {
+        lookupBarcodeInfo(cleanVal, false);
+      } else {
+        barcodeTimeoutRef.current = setTimeout(() => {
+          lookupBarcodeInfo(cleanVal, false);
+        }, 400);
+      }
     }
   };
 
@@ -773,10 +778,15 @@ export default function Dashboard({ token, user }) {
     if (bulkBarcodeTimeoutRefs.current[idx]) {
       clearTimeout(bulkBarcodeTimeoutRefs.current[idx]);
     }
-    if (val.trim().length >= 4) {
-      bulkBarcodeTimeoutRefs.current[idx] = setTimeout(() => {
-        lookupBarcodeInfo(val.trim(), true, idx);
-      }, 300);
+    const cleanVal = val.trim();
+    if (cleanVal.length >= 4) {
+      if (cleanVal.length === 8 || cleanVal.length === 12 || cleanVal.length === 13 || cleanVal.length === 14) {
+        lookupBarcodeInfo(cleanVal, true, idx);
+      } else {
+        bulkBarcodeTimeoutRefs.current[idx] = setTimeout(() => {
+          lookupBarcodeInfo(cleanVal, true, idx);
+        }, 400);
+      }
     }
   };
 
@@ -1944,8 +1954,8 @@ export default function Dashboard({ token, user }) {
               <table className="w-full text-left border-collapse text-xs">
                 <thead className="sticky top-0 bg-slate-950 z-10">
                   <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-3">Nomi *</th>
                     <th className="py-3 px-3">Shtrix-kod</th>
+                    <th className="py-3 px-3">Nomi *</th>
                     <th className="py-3 px-3 w-32">Tannarx (UZS)</th>
                     <th className="py-3 px-3 w-32">Sotish narxi * (UZS)</th>
                     <th className="py-3 px-3 w-28">O'lchov</th>
@@ -1958,21 +1968,21 @@ export default function Dashboard({ token, user }) {
                       <td className="p-2">
                         <input
                           type="text"
-                          required
-                          value={row.name}
-                          onChange={(e) => updateBulkRow(idx, 'name', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
-                          placeholder="Coca Cola 1.5L"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="text"
                           value={row.barcode}
                           onChange={(e) => handleBulkBarcodeChange(idx, e.target.value)}
                           onKeyDown={(e) => handleBulkBarcodeKeyDown(idx, e)}
                           className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
                           placeholder="Barkod"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          required
+                          value={row.name}
+                          onChange={(e) => updateBulkRow(idx, 'name', e.target.value)}
+                          className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
+                          placeholder="Coca Cola 1.5L"
                         />
                       </td>
                       <td className="p-2">

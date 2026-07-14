@@ -381,8 +381,8 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('musaffolashtir') || n.includes('glade') || n.includes('air wick') || n.includes('havo spreyi') || n.includes('hashorat') || n.includes('rodent') || n.includes('raid') || n.includes('raptor') || n.includes('kemuruvchi') || n.includes('zahar')) {
       return 'Havo musaffolashtirgichlar va hashorat vositalari';
     }
-    if (n.includes('sut') || n.includes('non') || n.includes('buxanka') || n.includes('patir')) {
-      return 'Sut va non mahsulotlari';
+    if (n.includes('sut') || n.includes('non') || n.includes('buxanka') || n.includes('patir') || n.includes('kefir') || n.includes('qatiq') || n.includes('smetana') || n.includes('sariyog\'') || n.includes('pishloq') || n.includes('kruassan') || n.includes('pechenye') || n.includes('vaflisi') || n.includes('zefir') || n.includes('marmelad') || n.includes('pryanik') || n.includes('xolva')) {
+      return 'Sut, non va qandolat mahsulotlari';
     }
     if (n.includes('taglik') || n.includes('huggies') || n.includes('pampers') || n.includes('evy baby') || n.includes('molfix') || n.includes('sleepy')) {
       return 'Bolalar tagliklari (Pampers, Huggies)';
@@ -417,7 +417,10 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('makaron') || n.includes('spagetti') || n.includes('perya') || n.includes('rojki') || n.includes('spirali') || n.includes('moy') || n.includes('sloboda') || n.includes('guruch') || n.includes('shakar') || n.includes('navat') || n.includes('choy') || n.includes('lipton')) {
       return 'Oziq-ovqat va baqqollik';
     }
-    return 'Santexnika va boshqalar';
+    if (n.includes('truba') || n.includes('kran') || n.includes('fiting') || n.includes('shlang') || n.includes('smesitel') || n.includes('mufta') || n.includes('dush') || n.includes('santexnika') || n.includes('bolt') || n.includes('gayka') || n.includes('rezba') || n.includes('otvod') || n.includes('troynik') || n.includes('klapan') || n.includes('ventil') || n.includes('filtr') || n.includes('sifon')) {
+      return 'Santexnika mahsulotlari';
+    }
+    return 'Boshqa tovarlar';
   };
 
   const getDaysLeft = (createdAt) => {
