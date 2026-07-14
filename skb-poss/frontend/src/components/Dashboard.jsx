@@ -670,18 +670,11 @@ export default function Dashboard({ token, user }) {
         if (isBulk && bulkIdx !== null) {
           setBulkRows(prev => {
             const updated = [...prev];
-            if (!updated[bulkIdx].name) {
-              updated[bulkIdx].name = data.name;
-            }
+            updated[bulkIdx].name = data.name;
             return updated;
           });
         } else {
-          setProductForm(prev => {
-            if (!prev.name) {
-              return { ...prev, name: data.name };
-            }
-            return prev;
-          });
+          setProductForm(prev => ({ ...prev, name: data.name }));
         }
       }
     } catch (err) {
@@ -1774,6 +1767,7 @@ export default function Dashboard({ token, user }) {
                       value={productForm.barcode}
                       onChange={handleSingleBarcodeChange}
                       onKeyDown={handleSingleBarcodeKeyDown}
+                      onBlur={() => lookupBarcodeInfo(productForm.barcode, false)}
                       className="w-full pl-4 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                       placeholder="Shtrix-kod (skanerlang yoki yozib Enter bosing)"
                       autoFocus
