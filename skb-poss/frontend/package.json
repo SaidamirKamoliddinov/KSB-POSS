@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.cjs"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "@tailwindcss/vite": "^4.3.2",
     "chart.js": "^4.5.1",
     "lucide-react": "^1.24.0",
