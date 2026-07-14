@@ -59,6 +59,46 @@ export default function SuperAdmin({ token, user }) {
   const [barcodeSearch, setBarcodeSearch] = useState('');
   const [selectedBarcodeCategory, setSelectedBarcodeCategory] = useState('Barchasi');
   const [barcodesLoading, setBarcodesLoading] = useState(false);
+  const [dynamicSearchResult, setDynamicSearchResult] = useState(null);
+  const [isSearchingDynamic, setIsSearchingDynamic] = useState(false);
+
+  useEffect(() => {
+    const trimmed = barcodeSearch.trim();
+    if (/^\d{8,15}$/.test(trimmed)) {
+      const localMatch = globalBarcodes.find(b => b.barcode === trimmed);
+      if (localMatch) {
+        setDynamicSearchResult(null);
+        return;
+      }
+      const delayDebounce = setTimeout(async () => {
+        setIsSearchingDynamic(true);
+        try {
+          const res = await fetch(`${API_URL}/products/lookup-barcode/${trimmed}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.name) {
+            setDynamicSearchResult({
+              barcode: trimmed,
+              name: data.name,
+              originalName: data.originalName,
+              source: data.source,
+              isDynamic: true
+            });
+          } else {
+            setDynamicSearchResult(null);
+          }
+        } catch {
+          setDynamicSearchResult(null);
+        } finally {
+          setIsSearchingDynamic(false);
+        }
+      }, 500);
+      return () => clearTimeout(delayDebounce);
+    } else {
+      setDynamicSearchResult(null);
+    }
+  }, [barcodeSearch, globalBarcodes, token]);
 
   useEffect(() => { fetchAllUsers(); }, []);
 
@@ -532,6 +572,12 @@ export default function SuperAdmin({ token, user }) {
               <button onClick={() => setBarcodeSearch('')} className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-white cursor-pointer"><X size={15} /></button>
             )}
           </div>
+          {isSearchingDynamic && (
+            <div className="text-xs text-purple-400 flex items-center gap-2 justify-center bg-purple-500/5 border border-purple-500/10 p-2.5 rounded-xl animate-pulse">
+              <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-purple-500 border-t-transparent" />
+              Soliq Tasnif va xalqaro onlayn bazalardan shtrix-kod qidirilmoqda...
+            </div>
+          )}
 
           {barcodesLoading ? (
             <div className="text-center py-12 text-slate-500">Shtrix-kodlar yuklanmoqda...</div>
@@ -570,10 +616,17 @@ export default function SuperAdmin({ token, user }) {
               {/* Barcode Grid Panel */}
               <div className="flex-1 w-full space-y-4">
                 {(() => {
-                  const displayedBarcodes = filteredBarcodes.filter(b => {
+                  const localFiltered = filteredBarcodes.filter(b => {
                     if (selectedBarcodeCategory === 'Barchasi') return true;
                     return getProductCategory(b.name) === selectedBarcodeCategory;
                   });
+
+                  const displayedBarcodes = [...localFiltered];
+                  if (dynamicSearchResult && (selectedBarcodeCategory === 'Barchasi' || getProductCategory(dynamicSearchResult.name) === selectedBarcodeCategory)) {
+                    if (!displayedBarcodes.some(b => b.barcode === dynamicSearchResult.barcode)) {
+                      displayedBarcodes.unshift(dynamicSearchResult);
+                    }
+                  }
 
                   if (displayedBarcodes.length === 0) {
                     return (
@@ -597,22 +650,35 @@ export default function SuperAdmin({ token, user }) {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[calc(100vh-295px)] overflow-y-auto pr-1 pb-2">
                         {displayedBarcodes.map(item => (
-                          <div key={item.barcode} className="bg-slate-950/40 border border-slate-800/85 p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/40 hover:bg-slate-950/60 transition-all group">
+                          <div key={item.barcode} className={`border p-4 rounded-2xl flex flex-col justify-between hover:bg-slate-950/60 transition-all group ${
+                            item.isDynamic 
+                              ? 'bg-purple-950/15 border-purple-500/30 hover:border-purple-500/60 shadow-lg shadow-purple-500/5' 
+                              : 'bg-slate-950/40 border-slate-800/85 hover:border-purple-500/40'
+                          }`}>
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
                                 <span className="text-xs font-mono font-bold text-purple-400 group-hover:text-purple-300 transition-colors">
                                   {item.barcode}
                                 </span>
-                                <span className="text-[10px] bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
-                                  Tizim mahsuloti
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                  item.isDynamic
+                                    ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300'
+                                    : 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
+                                }`}>
+                                  {item.isDynamic ? 'Soliq / Onlayn' : 'Tizim mahsuloti'}
                                 </span>
                               </div>
                               <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
                                 {item.name}
                               </h4>
+                              {item.originalName && item.originalName !== item.name && (
+                                <p className="text-[10px] text-slate-500 mt-1.5 font-mono line-clamp-2 border-t border-slate-900/60 pt-1">
+                                  Asl: {item.originalName}
+                                </p>
+                              )}
                             </div>
                             <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px] text-slate-500">
-                              <span>Status: Faol</span>
+                              <span>Manba: {item.source ? item.source.replace(' (Registry)', '').replace(' ma\'lumotlar bazasi', '') : 'Tizim'}</span>
                               <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
                             </div>
                           </div>
