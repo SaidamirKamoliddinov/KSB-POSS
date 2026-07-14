@@ -103,8 +103,23 @@ app.get('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.getShopSett
 app.put('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.updateShopSettings);
 // ─── REPORTS ───────────────────────────────────────────────────────────────────
 app.get('/api/reports/dashboard', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), report_controller_js_1.getDashboardStats);
-// ─── HEALTH ────────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
+app.get('/api/test-soliq/:barcode', async (req, res) => {
+    try {
+        const { barcode } = req.params;
+        const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${barcode}&size=10&page=0&lang=uz`);
+        const text = await soliqResponse.text();
+        res.json({
+            status: soliqResponse.status,
+            ok: soliqResponse.ok,
+            length: text.length,
+            preview: text.substring(0, 500)
+        });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message, stack: err.stack });
+    }
+});
 // ─── SETUP & STATUS ────────────────────────────────────────────────────────────
 app.get('/api/db-status', async (_req, res) => {
     try {
