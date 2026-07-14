@@ -411,6 +411,12 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('karta') || n.includes('dbk') || n.includes('o\'yin kartalari')) {
       return 'O\'yin kartalari (DBK)';
     }
+    if (n.includes('snickers') || n.includes('mars') || n.includes('bounty') || n.includes('twix') || n.includes('kitkat') || n.includes('milka') || n.includes('alpen gold') || n.includes('m&m') || n.includes('skittles')) {
+      return 'Shokoladlar va shirinliklar';
+    }
+    if (n.includes('makaron') || n.includes('spagetti') || n.includes('perya') || n.includes('rojki') || n.includes('spirali') || n.includes('moy') || n.includes('sloboda') || n.includes('guruch') || n.includes('shakar') || n.includes('navat') || n.includes('choy') || n.includes('lipton')) {
+      return 'Oziq-ovqat va baqqollik';
+    }
     return 'Santexnika va boshqalar';
   };
 
