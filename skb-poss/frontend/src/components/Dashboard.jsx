@@ -1767,18 +1767,6 @@ export default function Dashboard({ token, user }) {
             <form onSubmit={handleProductSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs text-slate-400 font-semibold mb-2">Mahsulot nomi *</label>
-                  <input
-                    type="text"
-                    required
-                    value={productForm.name}
-                    onChange={e => setProductForm({...productForm, name: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="Masalan: Coca Cola 1.5L"
-                  />
-                </div>
-
-                <div className="col-span-2">
                   <label className="block text-xs text-slate-400 font-semibold mb-2">Shtrix-kod</label>
                   <div className="relative">
                     <input
@@ -1788,6 +1776,7 @@ export default function Dashboard({ token, user }) {
                       onKeyDown={handleSingleBarcodeKeyDown}
                       className="w-full pl-4 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                       placeholder="Shtrix-kod (skanerlang yoki yozib Enter bosing)"
+                      autoFocus
                     />
                     {isSearchingBarcode && (
                       <div className="absolute right-3 top-3.5 flex items-center justify-center">
@@ -1795,6 +1784,18 @@ export default function Dashboard({ token, user }) {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-xs text-slate-400 font-semibold mb-2">Mahsulot nomi *</label>
+                  <input
+                    type="text"
+                    required
+                    value={productForm.name}
+                    onChange={e => setProductForm({...productForm, name: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="Masalan: Coca Cola 1.5L"
+                  />
                 </div>
 
                 <div>
