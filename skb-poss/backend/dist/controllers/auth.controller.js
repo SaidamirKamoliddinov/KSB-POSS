@@ -12,6 +12,7 @@ exports.deleteUser = deleteUser;
 exports.getShopSettings = getShopSettings;
 exports.updateShopSettings = updateShopSettings;
 exports.updatePinCode = updatePinCode;
+exports.updateUserAdmin = updateUserAdmin;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_js_1 = __importDefault(require("../db.js"));
@@ -323,5 +324,44 @@ async function updatePinCode(req, res) {
     catch (error) {
         console.error('updatePinCode error:', error);
         res.status(500).json({ error: 'PIN kodni saqlashda xatolik yuz berdi' });
+    }
+}
+async function updateUserAdmin(req, res) {
+    try {
+        if (req.user?.role !== 'SUPER_ADMIN') {
+            return res.status(403).json({ error: 'Bu funksiya faqat Super Admin uchun' });
+        }
+        const { id } = req.params;
+        const { fullName, username, password, pinCode } = req.body;
+        const user = await db_js_1.default.user.findUnique({ where: { id } });
+        if (!user)
+            return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+        const updateData = {};
+        if (fullName)
+            updateData.fullName = fullName.trim();
+        if (username) {
+            const existing = await db_js_1.default.user.findUnique({ where: { username: username.trim() } });
+            if (existing && existing.id !== id) {
+                return res.status(400).json({ error: 'Ushbu foydalanuvchi nomi band' });
+            }
+            updateData.username = username.trim();
+        }
+        if (password && password.trim() !== '') {
+            const salt = await bcryptjs_1.default.genSalt(10);
+            updateData.passwordHash = await bcryptjs_1.default.hash(password, salt);
+            updateData.plainPassword = password;
+        }
+        if (pinCode !== undefined) {
+            updateData.pinCode = pinCode.trim();
+        }
+        await db_js_1.default.user.update({
+            where: { id },
+            data: updateData
+        });
+        res.json({ message: 'Foydalanuvchi ma\'lumotlari yangilandi' });
+    }
+    catch (error) {
+        console.error('updateUserAdmin error:', error);
+        res.status(500).json({ error: 'Foydalanuvchi ma\'lumotlarini yangilashda xatolik yuz berdi' });
     }
 }

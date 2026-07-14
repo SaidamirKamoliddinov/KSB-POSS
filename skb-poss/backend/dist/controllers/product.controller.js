@@ -8,6 +8,9 @@ exports.createProduct = createProduct;
 exports.updateProduct = updateProduct;
 exports.deleteProduct = deleteProduct;
 exports.lookupBarcode = lookupBarcode;
+exports.getGlobalBarcodes = getGlobalBarcodes;
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const db_js_1 = __importDefault(require("../db.js"));
 async function getProducts(req, res) {
     try {
@@ -190,6 +193,26 @@ async function deleteProduct(req, res) {
         res.status(500).json({ error: 'Mahsulotni o\'chirishda xatolik yuz berdi' });
     }
 }
+function capitalizeFirstLetter(str) {
+    if (!str)
+        return '';
+    const trimmed = str.trim();
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+function cleanName(str) {
+    if (!str)
+        return '';
+    const parts = str.split(':');
+    let cleaned = parts[parts.length - 1].trim();
+    // Clean up case-insensitive brand duplicates like "Coca-Cola Coca-Cola"
+    cleaned = cleaned.replace(/(coca-cola|pepsi|sprite|fanta)\s+\1/gi, '$1');
+    cleaned = cleaned.replace(/(coca\s+cola)\s+\1/gi, '$1');
+    cleaned = cleaned.replace(/(coca)\s+(coca-cola)/gi, '$2');
+    cleaned = cleaned.replace(/(coca)\s+(coca\s+cola)/gi, '$2');
+    // Replace double spaces
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    return cleaned;
+}
 async function lookupBarcode(req, res) {
     try {
         const { barcode } = req.params;
@@ -201,21 +224,65 @@ async function lookupBarcode(req, res) {
             return res.status(400).json({ error: 'Shtrix-kod taqdim etilmagan' });
         }
         const cleanBarcode = barcode.trim();
+        // 0. Search local barcode registry file first
+        try {
+            const pathsToTry = [
+                path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
+                path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
+                path_1.default.join(process.cwd(), 'barcode_registry.json')
+            ];
+            let registryPath = '';
+            for (const p of pathsToTry) {
+                if (fs_1.default.existsSync(p)) {
+                    registryPath = p;
+                    break;
+                }
+            }
+            if (registryPath) {
+                const registryData = JSON.parse(fs_1.default.readFileSync(registryPath, 'utf8'));
+                if (registryData[cleanBarcode]) {
+                    return res.json({ name: capitalizeFirstLetter(registryData[cleanBarcode]) });
+                }
+            }
+        }
+        catch (registryError) {
+            console.warn('Barcode registry file error:', registryError);
+        }
         // 1. Search local DB first
         const dbMatch = await db_js_1.default.product.findFirst({
             where: { barcode: cleanBarcode },
             select: { name: true }
         });
         if (dbMatch && dbMatch.name) {
-            return res.json({ name: dbMatch.name });
+            return res.json({ name: capitalizeFirstLetter(dbMatch.name) });
         }
-        // 2. Fetch from Open Food Facts API (Good for foods/beverages)
+        // 2. Fetch from Soliq (Uzbekistan Tax Committee) Elasticsearch API (Free & local to Uzbekistan)
+        try {
+            const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${cleanBarcode}&size=10&page=0&lang=uz`);
+            if (soliqResponse.ok) {
+                const soliqData = await soliqResponse.json();
+                if (soliqData && Array.isArray(soliqData.data)) {
+                    const match = soliqData.data.find((item) => item.internationalCode === cleanBarcode ||
+                        (item.fullName && item.fullName.includes(cleanBarcode)));
+                    if (match && match.name) {
+                        const cleanedName = cleanName(match.name);
+                        if (cleanedName) {
+                            return res.json({ name: capitalizeFirstLetter(cleanedName) });
+                        }
+                    }
+                }
+            }
+        }
+        catch (soliqError) {
+            console.warn('Soliq API error:', soliqError);
+        }
+        // 3. Fetch from Open Food Facts API (Good for foods/beverages)
         try {
             const offResponse = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
             if (offResponse.ok) {
                 const offData = await offResponse.json();
                 if (offData && offData.product && offData.product.product_name) {
-                    return res.json({ name: offData.product.product_name });
+                    return res.json({ name: capitalizeFirstLetter(offData.product.product_name) });
                 }
             }
         }
@@ -228,7 +295,7 @@ async function lookupBarcode(req, res) {
             if (obfResponse.ok) {
                 const obfData = await obfResponse.json();
                 if (obfData && obfData.product && obfData.product.product_name) {
-                    return res.json({ name: obfData.product.product_name });
+                    return res.json({ name: capitalizeFirstLetter(obfData.product.product_name) });
                 }
             }
         }
@@ -241,7 +308,7 @@ async function lookupBarcode(req, res) {
             if (opfResponse.ok) {
                 const opfData = await opfResponse.json();
                 if (opfData && opfData.product && opfData.product.product_name) {
-                    return res.json({ name: opfData.product.product_name });
+                    return res.json({ name: capitalizeFirstLetter(opfData.product.product_name) });
                 }
             }
         }
@@ -254,7 +321,7 @@ async function lookupBarcode(req, res) {
             if (upcResponse.ok) {
                 const upcData = await upcResponse.json();
                 if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
-                    return res.json({ name: upcData.items[0].title });
+                    return res.json({ name: capitalizeFirstLetter(upcData.items[0].title) });
                 }
             }
         }
@@ -266,5 +333,34 @@ async function lookupBarcode(req, res) {
     catch (error) {
         console.error('lookupBarcode error:', error);
         res.status(500).json({ error: 'Shtrix-kod qidirishda xatolik yuz berdi' });
+    }
+}
+async function getGlobalBarcodes(req, res) {
+    try {
+        const pathsToTry = [
+            path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'barcode_registry.json')
+        ];
+        let registryPath = '';
+        for (const p of pathsToTry) {
+            if (fs_1.default.existsSync(p)) {
+                registryPath = p;
+                break;
+            }
+        }
+        if (registryPath) {
+            const registryData = JSON.parse(fs_1.default.readFileSync(registryPath, 'utf8'));
+            const list = Object.keys(registryData).map(key => ({
+                barcode: key,
+                name: capitalizeFirstLetter(registryData[key])
+            }));
+            return res.json(list);
+        }
+        return res.json([]);
+    }
+    catch (error) {
+        console.error('getGlobalBarcodes error:', error);
+        res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
     }
 }

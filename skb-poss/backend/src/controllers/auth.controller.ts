@@ -354,3 +354,44 @@ export async function updatePinCode(req: AuthenticatedRequest, res: Response) {
     res.status(500).json({ error: 'PIN kodni saqlashda xatolik yuz berdi' });
   }
 }
+
+export async function updateUserAdmin(req: AuthenticatedRequest, res: Response) {
+  try {
+    if (req.user?.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Bu funksiya faqat Super Admin uchun' });
+    }
+    const { id } = req.params;
+    const { fullName, username, password, pinCode } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+
+    const updateData: any = {};
+    if (fullName) updateData.fullName = fullName.trim();
+    if (username) {
+      const existing = await prisma.user.findUnique({ where: { username: username.trim() } });
+      if (existing && existing.id !== id) {
+        return res.status(400).json({ error: 'Ushbu foydalanuvchi nomi band' });
+      }
+      updateData.username = username.trim();
+    }
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      updateData.passwordHash = await bcrypt.hash(password, salt);
+      updateData.plainPassword = password;
+    }
+    if (pinCode !== undefined) {
+      updateData.pinCode = pinCode.trim();
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: updateData
+    });
+
+    res.json({ message: 'Foydalanuvchi ma\'lumotlari yangilandi' });
+  } catch (error) {
+    console.error('updateUserAdmin error:', error);
+    res.status(500).json({ error: 'Foydalanuvchi ma\'lumotlarini yangilashda xatolik yuz berdi' });
+  }
+}

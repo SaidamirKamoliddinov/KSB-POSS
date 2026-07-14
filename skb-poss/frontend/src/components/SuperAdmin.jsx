@@ -57,6 +57,7 @@ export default function SuperAdmin({ token, user }) {
   const [globalBarcodes, setGlobalBarcodes] = useState([]);
   const [filteredBarcodes, setFilteredBarcodes] = useState([]);
   const [barcodeSearch, setBarcodeSearch] = useState('');
+  const [selectedBarcodeCategory, setSelectedBarcodeCategory] = useState('Barchasi');
   const [barcodesLoading, setBarcodesLoading] = useState(false);
 
   useEffect(() => { fetchAllUsers(); }, []);
@@ -149,6 +150,67 @@ export default function SuperAdmin({ token, user }) {
 
   const openDeleteModal = (u) => { setDeleteTarget(u); setDeletePassword(''); setDeleteError(''); };
   const closeDeleteModal = () => { setDeleteTarget(null); setDeletePassword(''); setDeleteError(''); };
+
+  // Edit modal state
+  const [editTarget, setEditTarget] = useState(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editPinCode, setEditPinCode] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [showEditPw, setShowEditPw] = useState(false);
+
+  const openEditModal = (u) => {
+    setEditTarget(u);
+    setEditFullName(u.fullName || '');
+    setEditUsername(u.username || '');
+    setEditPassword('');
+    setEditPinCode(u.pinCode || '');
+    setEditError('');
+    setShowEditPw(false);
+  };
+  const closeEditModal = () => {
+    setEditTarget(null);
+    setEditFullName('');
+    setEditUsername('');
+    setEditPassword('');
+    setEditPinCode('');
+    setEditError('');
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    if (!editFullName.trim() || !editUsername.trim()) {
+      setEditError('F.I.SH va Login to\'ldirilishi shart');
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/users/${editTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fullName: editFullName,
+          username: editUsername,
+          password: editPassword,
+          pinCode: editPinCode
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeEditModal();
+        notify('success', 'Foydalanuvchi ma\'lumotlari yangilandi');
+        fetchAllUsers();
+      } else {
+        setEditError(data.error || 'Xatolik yuz berdi');
+      }
+    } catch {
+      setEditError('Tarmoq xatoligi');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const handleDeleteUser = async (e) => {
     e.preventDefault();
@@ -434,6 +496,9 @@ export default function SuperAdmin({ token, user }) {
                         {u.isBlocked ? <Unlock size={13} /> : <Lock size={13} />}
                         <span>{u.isBlocked ? 'Ochish' : 'Bloklash'}</span>
                       </button>
+                      <button onClick={() => openEditModal(u)} className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:bg-purple-600 hover:text-white hover:border-purple-600 rounded-xl text-xs transition-all cursor-pointer" title="Tahrirlash">
+                        <Settings size={13} />
+                      </button>
                       <button onClick={() => openDeleteModal(u)} className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:bg-red-600 hover:text-white hover:border-red-600 rounded-xl text-xs transition-all cursor-pointer" title="O'chirish">
                         <Trash2 size={13} />
                       </button>
@@ -476,54 +541,87 @@ export default function SuperAdmin({ token, user }) {
               <p>Qidiruv bo'yicha hech qanday shtrix-kod topilmadi</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Grouping barcodes dynamically by category */}
-              {(() => {
-                const groups = {};
-                filteredBarcodes.forEach(item => {
-                  const cat = getProductCategory(item.name);
-                  if (!groups[cat]) groups[cat] = [];
-                  groups[cat].push(item);
-                });
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              {/* Categories Sidebar */}
+              <div className="w-full lg:w-72 shrink-0 bg-slate-900/30 border border-slate-800/80 p-4 rounded-3xl flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto whitespace-nowrap lg:whitespace-normal pb-3 lg:pb-0 scrollbar-none max-h-16 lg:max-h-[calc(100vh-230px)] no-print">
+                {['Barchasi', ...new Set(globalBarcodes.map(b => getProductCategory(b.name)).sort())].map(cat => {
+                  const isActive = selectedBarcodeCategory === cat;
+                  const displayCount = cat === 'Barchasi' ? globalBarcodes.length : globalBarcodes.filter(b => getProductCategory(b.name) === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedBarcodeCategory(cat)}
+                      className={`px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between gap-3 shrink-0 text-left ${
+                        isActive
+                          ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/15 scale-[1.01]'
+                          : 'bg-slate-950/40 border border-slate-900 text-slate-400 hover:text-white hover:border-slate-800'
+                      }`}
+                    >
+                      <span className="truncate">{cat}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-lg ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-slate-900/50 text-slate-500'
+                      }`}>{displayCount}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                return Object.keys(groups).sort().map(catName => (
-                  <div key={catName} className="bg-slate-900/30 border border-slate-800/80 p-6 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                      <h3 className="font-black text-slate-200 flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse" />
-                        {catName}
-                      </h3>
-                      <span className="text-xs bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded-full">
-                        {groups[catName].length} ta mahsulot
-                      </span>
-                    </div>
+              {/* Barcode Grid Panel */}
+              <div className="flex-1 w-full space-y-4">
+                {(() => {
+                  const displayedBarcodes = filteredBarcodes.filter(b => {
+                    if (selectedBarcodeCategory === 'Barchasi') return true;
+                    return getProductCategory(b.name) === selectedBarcodeCategory;
+                  });
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {groups[catName].map(item => (
-                        <div key={item.barcode} className="bg-slate-950/40 border border-slate-800/85 p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/40 hover:bg-slate-950/60 transition-all group">
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="text-xs font-mono font-bold text-purple-400 group-hover:text-purple-300 transition-colors">
-                                {item.barcode}
-                              </span>
-                              <span className="text-[10px] bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
-                                Tizim mahsuloti
-                              </span>
+                  if (displayedBarcodes.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-slate-500 text-sm">
+                        Bu toifada mahsulotlar topilmadi
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="bg-slate-900/10 border border-slate-800/40 p-6 rounded-3xl space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                        <h3 className="font-black text-slate-200 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse" />
+                          {selectedBarcodeCategory}
+                        </h3>
+                        <span className="text-xs bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded-full">
+                          {displayedBarcodes.length} ta mahsulot
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[calc(100vh-295px)] overflow-y-auto pr-1 pb-2">
+                        {displayedBarcodes.map(item => (
+                          <div key={item.barcode} className="bg-slate-950/40 border border-slate-800/85 p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/40 hover:bg-slate-950/60 transition-all group">
+                            <div>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <span className="text-xs font-mono font-bold text-purple-400 group-hover:text-purple-300 transition-colors">
+                                  {item.barcode}
+                                </span>
+                                <span className="text-[10px] bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                                  Tizim mahsuloti
+                                </span>
+                              </div>
+                              <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
+                                {item.name}
+                              </h4>
                             </div>
-                            <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
-                              {item.name}
-                            </h4>
+                            <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px] text-slate-500">
+                              <span>Status: Faol</span>
+                              <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
+                            </div>
                           </div>
-                          <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px] text-slate-500">
-                            <span>Status: Faol</span>
-                            <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ));
-              })()}
+                  );
+                })()}
+              </div>
             </div>
           )}
         </div>
@@ -693,6 +791,84 @@ export default function SuperAdmin({ token, user }) {
                 <button type="button" onClick={closeDeleteModal} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium cursor-pointer">Bekor qilish</button>
                 <button type="submit" disabled={deleteLoading} className="flex-1 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2">
                   {deleteLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Trash2 size={14} /> O'chirish</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl space-y-4">
+            <button onClick={closeEditModal} className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"><X size={20} /></button>
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-2xl"><Settings size={20} className="text-purple-400" /></div>
+              <div>
+                <h3 className="font-bold text-white">Foydalanuvchini tahrirlash</h3>
+                <p className="text-xs text-slate-400">Tizim foydalanuvchisi sozlamalarini yangilash</p>
+              </div>
+            </div>
+            
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 font-semibold mb-2">Foydalanuvchi F.I.SH:</label>
+                <input
+                  type="text"
+                  required
+                  value={editFullName}
+                  onChange={e => setEditFullName(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 font-semibold mb-2">Foydalanuvchi logini (username):</label>
+                <input
+                  type="text"
+                  required
+                  value={editUsername}
+                  onChange={e => setEditUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 font-semibold mb-2">Yangi parol (o'zgartirmaslik uchun bo'sh qoldiring):</label>
+                <div className="relative">
+                  <input
+                    type={showEditPw ? 'text' : 'password'}
+                    placeholder="Yangi parol kiriting"
+                    value={editPassword}
+                    onChange={e => setEditPassword(e.target.value)}
+                    className="w-full px-4 pr-12 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:border-purple-500"
+                  />
+                  <button type="button" onClick={() => setShowEditPw(v => !v)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-white cursor-pointer" tabIndex={-1}>
+                    {showEditPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 font-semibold mb-2">PIN kod (4 xonali):</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  inputMode="numeric"
+                  placeholder="Masalan, 1234"
+                  value={editPinCode}
+                  onChange={e => setEditPinCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-purple-500 text-center font-bold tracking-widest"
+                />
+              </div>
+
+              {editError && <p className="text-red-400 text-xs flex items-center gap-1"><AlertTriangle size={12} /> {editError}</p>}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={closeEditModal} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium cursor-pointer">Bekor qilish</button>
+                <button type="submit" disabled={editLoading} className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl font-bold cursor-pointer flex items-center justify-center gap-2">
+                  {editLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Save size={14} /> Saqlash</>}
                 </button>
               </div>
             </form>

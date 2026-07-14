@@ -29,6 +29,7 @@ app.post('/api/auth/change-password', auth_js_1.authenticateJWT, auth_controller
 app.put('/api/auth/update-pin', auth_js_1.authenticateJWT, auth_controller_js_1.updatePinCode);
 app.get('/api/auth/all-users', auth_js_1.authenticateJWT, auth_controller_js_1.getAllUsers);
 app.patch('/api/auth/users/:id/toggle-block', auth_js_1.authenticateJWT, auth_controller_js_1.toggleBlockUser);
+app.put('/api/auth/users/:id', auth_js_1.authenticateJWT, auth_controller_js_1.updateUserAdmin);
 app.delete('/api/auth/users/:id', auth_js_1.authenticateJWT, auth_controller_js_1.deleteUser);
 // ─── CATEGORIES ────────────────────────────────────────────────────────────────
 app.get('/api/categories', auth_js_1.authenticateJWT, category_controller_js_1.getCategories);
@@ -37,6 +38,7 @@ app.put('/api/categories/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authoriz
 app.delete('/api/categories/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), category_controller_js_1.deleteCategory);
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', auth_js_1.authenticateJWT, product_controller_js_1.getProducts);
+app.get('/api/products/global-barcodes', auth_js_1.authenticateJWT, product_controller_js_1.getGlobalBarcodes);
 app.get('/api/products/lookup-barcode/:barcode', auth_js_1.authenticateJWT, product_controller_js_1.lookupBarcode);
 app.post('/api/products', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), product_controller_js_1.createProduct);
 app.post('/api/products/bulk', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), async (req, res) => {
