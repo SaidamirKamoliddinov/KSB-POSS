@@ -356,10 +356,10 @@ export default function SuperAdmin({ token, user }) {
 
   const getProductCategory = (name) => {
     const n = name.toLowerCase();
-    if (n.includes('ruchka') || n.includes('daftar') || n.includes('papka') || n.includes('kley') || n.includes('yelim') || n.includes('qalam') || n.includes('o\'chirg\'ich') || n.includes('qalamtarosh') || n.includes('bloknot') || n.includes('albom') || n.includes('stapler') || n.includes('skrepka') || n.includes('korrektor') || n.includes('lenta') || n.includes('kalkulyator') || n.includes('qaychi') || n.includes('tsirkul') || n.includes('marker') || n.includes('skotch') || n.includes('fayl') || n.includes('penal') || n.includes('qog\'oz') || n.includes('double a') || n.includes('svetocopy') || n.includes('deli') || n.includes('yalong') || n.includes('erichkrause') || n.includes('colorpack') || n.includes('flavis') || n.includes('senator') || n.includes('rotring') || n.includes('faber-castell') || n.includes('maped') || n.includes('brauberg') || n.includes('berlingo')) {
+    if (n.includes('ruchka') || n.includes('daftar') || n.includes('papka') || n.includes('kley') || n.includes('yelim') || n.includes('qalam') || n.includes('o\'chirg\'ich') || n.includes('qalamtarosh') || n.includes('bloknot') || n.includes('albom') || n.includes('stapler') || n.includes('skrepka') || n.includes('korrektor') || n.includes('lenta') || n.includes('kalkulyator') || n.includes('qaychi') || n.includes('tsirkul') || n.includes('marker') || n.includes('skotch') || n.includes('fayl') || n.includes('penal') || n.includes('qog\'oz') || n.includes('double a') || n.includes('svetocopy') || n.includes('deli') || n.includes('yalong') || n.includes('erichkrause') || n.includes('colorpack') || n.includes('rotring') || n.includes('faber-castell') || n.includes('maped') || n.includes('brauberg') || n.includes('berlingo')) {
       return 'Kantselyariya tovarlari';
     }
-    if (n.includes('coca-cola') || n.includes('pepsi') || n.includes('cola') || n.includes('fanta') || n.includes('sprite') || n.includes('adrenaline') || n.includes('flash') || n.includes('red bull') || n.includes('gorilla') || n.includes('pivo') || n.includes('sarbast') || n.includes('tuborg') || n.includes('carlsberg') || n.includes('heineken') || n.includes('baltika') || n.includes('aroq') || n.includes('qoratosh') || n.includes('whiskey') || n.includes('vodka') || n.includes('absolut') || n.includes('jack daniel')) {
+    if (n.includes('coca-cola') || n.includes('pepsi') || n.includes('cola') || n.includes('fanta') || n.includes('sprite') || n.includes('adrenaline') || n.includes('flash') || n.includes('red bull') || n.includes('gorilla') || n.includes('pivo') || n.includes('sarbast') || n.includes('tuborg') || n.includes('carlsberg') || n.includes('heineken') || n.includes('baltika') || n.includes('aroq') || n.includes('qoratosh') || n.includes('whiskey') || n.includes('vodka') || n.includes('absolut') || n.includes('jack daniel') || n.includes('flavis')) {
       return 'Energetik, alkogol va salqin ichimliklar';
     }
     if (n.includes('safeguard') || n.includes('duru') || n.includes('shampun') || n.includes('elseve') || n.includes('balzam') || n.includes('jesco') || n.includes('else') || n.includes('fax') || n.includes('dove') || n.includes('clear') || n.includes('dush geli') || n.includes('dush gel')) {
@@ -396,7 +396,7 @@ export default function SuperAdmin({ token, user }) {
     if (n.includes('valik') || n.includes('cho\'tka') || n.includes('kraska') || n.includes('emulsiya') || n.includes('lak') || n.includes('rastvoritel') || n.includes('razbavitel') || n.includes('pf-115') || n.includes('gruntovka') || n.includes('rotband') || n.includes('uzcolor')) {
       return 'Qurilish mahsulotlari (Hayat Birjasi)';
     }
-    if (n.includes('kent') || n.includes('pall mall') || n.includes('parlament') || n.includes('sigaret') || n.includes('tamaki') || n.includes('l&m') || n.includes('winston') || n.includes('esse')) {
+    if (n.includes('kent') || n.includes('pall mall') || n.includes('parlament') || n.includes('sigaret') || n.includes('tamaki') || n.includes('l&m') || n.includes('winston') || n.includes('esse') || n.includes('senator')) {
       return 'Tamaki mahsulotlari';
     }
     if (n.includes('kasha') || n.includes('bo\'tqa') || n.includes('nestle') || n.includes('humana') || n.includes('nutrilak')) {
