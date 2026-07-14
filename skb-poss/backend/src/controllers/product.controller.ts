@@ -264,7 +264,11 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (registryPath) {
         const registryData = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
         if (registryData[cleanBarcode]) {
-          return res.json({ name: capitalizeFirstLetter(registryData[cleanBarcode]) });
+          return res.json({
+            name: capitalizeFirstLetter(registryData[cleanBarcode]),
+            originalName: registryData[cleanBarcode],
+            source: 'Tizim ma\'lumotlar bazasi (Registry)'
+          });
         }
       }
     } catch (registryError) {
@@ -278,23 +282,31 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
     });
 
     if (dbMatch && dbMatch.name) {
-      return res.json({ name: capitalizeFirstLetter(dbMatch.name) });
+      return res.json({
+        name: capitalizeFirstLetter(dbMatch.name),
+        originalName: dbMatch.name,
+        source: 'Do\'koningiz maxsus ma\'lumotlar bazasi (DB)'
+      });
     }
 
-    // 2. Fetch from Soliq (Uzbekistan Tax Committee) Elasticsearch API (Free & local to Uzbekistan)
+    // 2. Fetch from Soliq (Uzbekistan Tax Committee) Elasticsearch API
     try {
       const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${cleanBarcode}&size=10&page=0&lang=uz`);
       if (soliqResponse.ok) {
         const soliqData = await soliqResponse.json() as any;
         if (soliqData && Array.isArray(soliqData.data)) {
-          const match = soliqData.data.find((item: any) => 
-            item.internationalCode === cleanBarcode || 
+          const match = soliqData.data.find((item: any) =>
+            item.internationalCode === cleanBarcode ||
             (item.fullName && item.fullName.includes(cleanBarcode))
           );
           if (match && match.name) {
             const cleanedName = cleanName(match.name);
             if (cleanedName) {
-              return res.json({ name: capitalizeFirstLetter(cleanedName) });
+              return res.json({
+                name: capitalizeFirstLetter(cleanedName),
+                originalName: match.name,
+                source: 'Soliq (Tasnif) ma\'lumotlar bazasi'
+              });
             }
           }
         }
@@ -303,59 +315,75 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       console.warn('Soliq API error:', soliqError);
     }
 
-    // 3. Fetch from Open Food Facts API (Good for foods/beverages)
+    // 3. Fetch from Open Food Facts API
     try {
       const offResponse = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
       if (offResponse.ok) {
         const offData = await offResponse.json() as any;
         if (offData && offData.product && offData.product.product_name) {
-          return res.json({ name: capitalizeFirstLetter(offData.product.product_name) });
+          return res.json({
+            name: capitalizeFirstLetter(offData.product.product_name),
+            originalName: offData.product.product_name,
+            source: 'Open Food Facts (Xalqaro oziq-ovqat bazasi)'
+          });
         }
       }
     } catch (offError) {
       console.warn('Open Food Facts API error:', offError);
     }
 
-    // 3. Fetch from Open Beauty Facts API (Good for cosmetics, personal care, cotton swabs/uxachiska, hygiene)
+    // 3. Fetch from Open Beauty Facts API
     try {
       const obfResponse = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
       if (obfResponse.ok) {
         const obfData = await obfResponse.json() as any;
         if (obfData && obfData.product && obfData.product.product_name) {
-          return res.json({ name: capitalizeFirstLetter(obfData.product.product_name) });
+          return res.json({
+            name: capitalizeFirstLetter(obfData.product.product_name),
+            originalName: obfData.product.product_name,
+            source: 'Open Beauty Facts (Kosmetika bazasi)'
+          });
         }
       }
     } catch (obfError) {
       console.warn('Open Beauty Facts API error:', obfError);
     }
 
-    // 4. Fetch from Open Products Facts API (Good for general non-food items, household products)
+    // 4. Fetch from Open Products Facts API
     try {
       const opfResponse = await fetch(`https://world.openproductsfacts.org/api/v2/product/${cleanBarcode}?fields=product_name`);
       if (opfResponse.ok) {
         const opfData = await opfResponse.json() as any;
         if (opfData && opfData.product && opfData.product.product_name) {
-          return res.json({ name: capitalizeFirstLetter(opfData.product.product_name) });
+          return res.json({
+            name: capitalizeFirstLetter(opfData.product.product_name),
+            originalName: opfData.product.product_name,
+            source: 'Open Products Facts (Xalqaro tovarlar bazasi)'
+          });
         }
       }
     } catch (opfError) {
       console.warn('Open Products Facts API error:', opfError);
     }
 
-    // 5. Fetch from UPCitemdb API (Good for general merchandise)
+    // 5. Fetch from UPCitemdb API
     try {
       const upcResponse = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${cleanBarcode}`);
       if (upcResponse.ok) {
         const upcData = await upcResponse.json() as any;
         if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
-          return res.json({ name: capitalizeFirstLetter(upcData.items[0].title) });
+          return res.json({
+            name: capitalizeFirstLetter(upcData.items[0].title),
+            originalName: upcData.items[0].title,
+            source: 'UPCitemdb (Xalqaro tovarlar bazasi)'
+          });
         }
       }
     } catch (upcError) {
       console.warn('UPCitemdb API error:', upcError);
     }
 
-    return res.json({ name: '' });
+    return res.json({ name: '', originalName: '', source: '' });
   } catch (error) {
     console.error('lookupBarcode error:', error);
     res.status(500).json({ error: 'Shtrix-kod qidirishda xatolik yuz berdi' });

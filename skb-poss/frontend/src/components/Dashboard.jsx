@@ -77,6 +77,7 @@ export default function Dashboard({ token, user }) {
   
   const [showProductModal, setShowProductModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [barcodeSourceInfo, setBarcodeSourceInfo] = useState(null);
 
   // PWA & Archive States
   const [archiveSales, setArchiveSales] = useState([]);
@@ -501,6 +502,7 @@ export default function Dashboard({ token, user }) {
       stock: '999999',
       unit: 'dona',
     });
+    setBarcodeSourceInfo(null);
   };
 
   const openEditProduct = (prod) => {
@@ -513,6 +515,7 @@ export default function Dashboard({ token, user }) {
       stock: prod.stock,
       unit: prod.unit,
     });
+    setBarcodeSourceInfo(null);
     setShowProductModal(true);
   };
 
@@ -675,10 +678,22 @@ export default function Dashboard({ token, user }) {
           });
         } else {
           setProductForm(prev => ({ ...prev, name: data.name }));
+          if (data.originalName && data.source) {
+            setBarcodeSourceInfo({ originalName: data.originalName, source: data.source });
+          } else {
+            setBarcodeSourceInfo(null);
+          }
+        }
+      } else {
+        if (!isBulk) {
+          setBarcodeSourceInfo(null);
         }
       }
     } catch (err) {
       console.error("Barcode lookup error:", err);
+      if (!isBulk) {
+        setBarcodeSourceInfo(null);
+      }
     } finally {
       setIsSearchingBarcode(false);
     }
@@ -1790,6 +1805,19 @@ export default function Dashboard({ token, user }) {
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                     placeholder="Masalan: Coca Cola 1.5L"
                   />
+                  {barcodeSourceInfo && (
+                    <div className="mt-2.5 bg-slate-950/65 border border-slate-800/80 p-3.5 rounded-xl space-y-1.5 text-xs animate-fadeIn">
+                      <div className="text-slate-400 font-bold flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block animate-ping" />
+                          Tizim Qidiruv Manbasi: <span className="text-purple-400">{barcodeSourceInfo.source}</span>
+                        </span>
+                      </div>
+                      <div className="text-slate-350 font-mono break-words leading-relaxed border-t border-slate-900 pt-1.5">
+                        <span className="text-slate-500">Asl nomi:</span> {barcodeSourceInfo.originalName}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -274,9 +274,35 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response) {
     const targetUser = await prisma.user.findUnique({ where: { id }, include: { shop: true } });
     if (!targetUser) return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
 
-    // Delete user's shop (cascade deletes products, sales, etc.)
+    // Delete user's shop data manually in correct order to avoid foreign key restrict errors
     if (targetUser.shopId) {
-      await prisma.shop.delete({ where: { id: targetUser.shopId } });
+      const shopId = targetUser.shopId;
+      await prisma.$transaction(async (tx) => {
+        // 1. Delete SaleItems belonging to the shop's sales
+        await tx.saleItem.deleteMany({
+          where: { sale: { shopId } }
+        });
+        // 2. Delete Sales
+        await tx.sale.deleteMany({
+          where: { shopId }
+        });
+        // 3. Delete Products
+        await tx.product.deleteMany({
+          where: { shopId }
+        });
+        // 4. Delete Categories
+        await tx.category.deleteMany({
+          where: { shopId }
+        });
+        // 5. Delete Users
+        await tx.user.deleteMany({
+          where: { shopId }
+        });
+        // 6. Delete Shop
+        await tx.shop.delete({
+          where: { id: shopId }
+        });
+      });
     } else {
       await prisma.user.delete({ where: { id } });
     }
