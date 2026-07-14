@@ -739,6 +739,74 @@ export default function Dashboard({ token, user }) {
       }
     }
 
+    // Frontend Fallback to Open Food Facts (Global US/Europe food database)
+    if (!found) {
+      try {
+        const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcodeVal.trim()}.json`);
+        if (offResponse.ok) {
+          const offData = await offResponse.json();
+          if (offData && offData.status === 1 && offData.product) {
+            let name = offData.product.product_name;
+            if (offData.product.brands) {
+              name = `${offData.product.brands} ${name}`;
+            }
+            if (name) {
+              if (isBulk && bulkIdx !== null) {
+                setBulkRows(prev => {
+                  const updated = [...prev];
+                  updated[bulkIdx].name = name;
+                  return updated;
+                });
+              } else {
+                setProductForm(prev => ({ ...prev, name }));
+                setBarcodeSourceInfo({
+                  originalName: name,
+                  source: 'Open Food Facts (Global Oziq-ovqat bazasi)'
+                });
+              }
+              found = true;
+            }
+          }
+        }
+      } catch (offErr) {
+        console.error("Open Food Facts lookup error:", offErr);
+      }
+    }
+
+    // Frontend Fallback to Open Beauty Facts (Global US/Europe cosmetics database)
+    if (!found) {
+      try {
+        const obfResponse = await fetch(`https://world.openbeautyfacts.org/api/v0/product/${barcodeVal.trim()}.json`);
+        if (obfResponse.ok) {
+          const obfData = await obfResponse.json();
+          if (obfData && obfData.status === 1 && obfData.product) {
+            let name = obfData.product.product_name;
+            if (obfData.product.brands) {
+              name = `${obfData.product.brands} ${name}`;
+            }
+            if (name) {
+              if (isBulk && bulkIdx !== null) {
+                setBulkRows(prev => {
+                  const updated = [...prev];
+                  updated[bulkIdx].name = name;
+                  return updated;
+                });
+              } else {
+                setProductForm(prev => ({ ...prev, name }));
+                setBarcodeSourceInfo({
+                  originalName: name,
+                  source: 'Open Beauty Facts (Global Kosmetika bazasi)'
+                });
+              }
+              found = true;
+            }
+          }
+        }
+      } catch (obfErr) {
+        console.error("Open Beauty Facts lookup error:", obfErr);
+      }
+    }
+
     if (!found && !isBulk) {
       setBarcodeSourceInfo(null);
     }

@@ -134,6 +134,62 @@ export default function SuperAdmin({ token, user }) {
           }
         }
 
+        // Open Food Facts Fallback
+        if (!found) {
+          try {
+            const offResponse = await fetch(`https://world.openfoodfacts.org/api/v0/product/${trimmed}.json`);
+            if (offResponse.ok) {
+              const offData = await offResponse.json();
+              if (offData && offData.status === 1 && offData.product) {
+                let name = offData.product.product_name;
+                if (offData.product.brands) {
+                  name = `${offData.product.brands} ${name}`;
+                }
+                if (name) {
+                  setDynamicSearchResult({
+                    barcode: trimmed,
+                    name,
+                    originalName: name,
+                    source: 'Open Food Facts (Global Oziq-ovqat bazasi)',
+                    isDynamic: true
+                  });
+                  found = true;
+                }
+              }
+            }
+          } catch (offErr) {
+            console.error("Open Food Facts lookup error:", offErr);
+          }
+        }
+
+        // Open Beauty Facts Fallback
+        if (!found) {
+          try {
+            const obfResponse = await fetch(`https://world.openbeautyfacts.org/api/v0/product/${trimmed}.json`);
+            if (obfResponse.ok) {
+              const obfData = await obfResponse.json();
+              if (obfData && obfData.status === 1 && obfData.product) {
+                let name = obfData.product.product_name;
+                if (obfData.product.brands) {
+                  name = `${obfData.product.brands} ${name}`;
+                }
+                if (name) {
+                  setDynamicSearchResult({
+                    barcode: trimmed,
+                    name,
+                    originalName: name,
+                    source: 'Open Beauty Facts (Global Kosmetika bazasi)',
+                    isDynamic: true
+                  });
+                  found = true;
+                }
+              }
+            }
+          } catch (obfErr) {
+            console.error("Open Beauty Facts lookup error:", obfErr);
+          }
+        }
+
         if (!found) {
           setDynamicSearchResult(null);
         }
