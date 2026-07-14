@@ -664,6 +664,7 @@ export default function Dashboard({ token, user }) {
   const lookupBarcodeInfo = async (barcodeVal, isBulk = false, bulkIdx = null) => {
     if (!barcodeVal || barcodeVal.trim().length < 4) return;
     setIsSearchingBarcode(true);
+    let found = false;
     try {
       const res = await fetch(`${API_URL}/products/lookup-barcode/${barcodeVal.trim()}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -684,19 +685,64 @@ export default function Dashboard({ token, user }) {
             setBarcodeSourceInfo(null);
           }
         }
-      } else {
-        if (!isBulk) {
-          setBarcodeSourceInfo(null);
-        }
+        found = true;
       }
     } catch (err) {
-      console.error("Barcode lookup error:", err);
-      if (!isBulk) {
-        setBarcodeSourceInfo(null);
-      }
-    } finally {
-      setIsSearchingBarcode(false);
+      console.warn("Backend barcode lookup failed, falling back to frontend:", err);
     }
+
+    // Frontend Fallback to Soliq Tasnif API directly
+    if (!found) {
+      try {
+        const soliqResponse = await fetch(`https://tasnif.soliq.uz/api/cls-api/elasticsearch/search?search=${barcodeVal.trim()}&size=10&page=0&lang=uz`);
+        if (soliqResponse.ok) {
+          const soliqData = await soliqResponse.json();
+          if (soliqData && Array.isArray(soliqData.data) && soliqData.data.length > 0) {
+            const match = soliqData.data.find(item =>
+              item.internationalCode === barcodeVal.trim() ||
+              (item.fullName && item.fullName.includes(barcodeVal.trim()))
+            );
+            if (match && match.name) {
+              const cleanName = (str) => {
+                if (!str) return '';
+                const parts = str.split(':');
+                let cleaned = parts[parts.length - 1].trim();
+                cleaned = cleaned.replace(/(coca-cola|pepsi|sprite|fanta)\s+\1/gi, '$1');
+                cleaned = cleaned.replace(/(coca\s+cola)\s+\1/gi, '$1');
+                cleaned = cleaned.replace(/(coca)\s+(coca-cola)/gi, '$2');
+                cleaned = cleaned.replace(/(coca)\s+(coca\s+cola)/gi, '$2');
+                cleaned = cleaned.replace(/\s+/g, ' ').trim();
+                return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+              };
+              const cleaned = cleanName(match.name);
+              if (cleaned) {
+                if (isBulk && bulkIdx !== null) {
+                  setBulkRows(prev => {
+                    const updated = [...prev];
+                    updated[bulkIdx].name = cleaned;
+                    return updated;
+                  });
+                } else {
+                  setProductForm(prev => ({ ...prev, name: cleaned }));
+                  setBarcodeSourceInfo({
+                    originalName: match.name,
+                    source: 'Soliq (Tasnif) ma\'lumotlar bazasi (Dinamik)'
+                  });
+                }
+                found = true;
+              }
+            }
+          }
+        }
+      } catch (soliqErr) {
+        console.error("Frontend Soliq fallback lookup error:", soliqErr);
+      }
+    }
+
+    if (!found && !isBulk) {
+      setBarcodeSourceInfo(null);
+    }
+    setIsSearchingBarcode(false);
   };
 
   const handleSingleBarcodeChange = (e) => {
