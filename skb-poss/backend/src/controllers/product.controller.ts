@@ -94,6 +94,11 @@ export async function createProduct(req: AuthenticatedRequest, res: Response) {
       }
     });
 
+    // Check and save to crowdsourced barcodes if not in default registry
+    if (product.barcode) {
+      checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
+    }
+
     res.status(201).json(product);
   } catch (error) {
     console.error('createProduct error:', error);
@@ -164,6 +169,11 @@ export async function updateProduct(req: AuthenticatedRequest, res: Response) {
         }
       }
     });
+
+    // Check and save to crowdsourced barcodes if not in default registry
+    if (product.barcode) {
+      checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
+    }
 
     res.json(product);
   } catch (error) {
@@ -273,6 +283,22 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       }
     } catch (registryError) {
       console.warn('Barcode registry file error:', registryError);
+    }
+
+    // 0.5 Check crowdsourced barcodes database
+    try {
+      const crowdMatch = await prisma.crowdsourcedBarcode.findUnique({
+        where: { barcode: cleanBarcode }
+      });
+      if (crowdMatch && crowdMatch.name) {
+        return res.json({
+          name: capitalizeFirstLetter(crowdMatch.name),
+          originalName: crowdMatch.name,
+          source: `Foydalanuvchilardan (${crowdMatch.shopName || "Tizim"})`
+        });
+      }
+    } catch (crowdErr) {
+      console.warn('Crowdsourced database check error:', crowdErr);
     }
 
     // 1. Search local DB first
@@ -416,5 +442,81 @@ export async function getGlobalBarcodes(req: AuthenticatedRequest, res: Response
   } catch (error) {
     console.error('getGlobalBarcodes error:', error);
     res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
+  }
+}
+
+export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefined | null, name: string, shopId: string) {
+  if (!barcode) return;
+  const trimmed = barcode.trim();
+  if (trimmed === '' || trimmed.length < 4) return;
+
+  try {
+    // 1. Check if it's already in barcode_registry.json
+    const pathsToTry = [
+      path.join(process.cwd(), 'src/barcode_registry.json'),
+      path.join(process.cwd(), 'dist/barcode_registry.json'),
+      path.join(process.cwd(), 'barcode_registry.json'),
+      path.join(process.cwd(), 'backend/src/barcode_registry.json'),
+      path.join(process.cwd(), 'backend/barcode_registry.json')
+    ];
+    let foundInRegistry = false;
+    for (const p of pathsToTry) {
+      if (fs.existsSync(p)) {
+        const registryData = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (registryData[trimmed]) {
+          foundInRegistry = true;
+          break;
+        }
+      }
+    }
+    if (foundInRegistry) return;
+
+    // 2. Check if already exists in CrowdsourcedBarcode
+    const existing = await prisma.crowdsourcedBarcode.findUnique({
+      where: { barcode: trimmed }
+    });
+    if (existing) return;
+
+    // Fetch shop name
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { name: true }
+    });
+
+    // 3. Create entry
+    await prisma.crowdsourcedBarcode.create({
+      data: {
+        barcode: trimmed,
+        name: name.trim(),
+        shopName: shop?.name || 'Noma\'lum do\'kon'
+      }
+    });
+  } catch (error) {
+    console.warn('checkAndSaveCrowdsourcedBarcode warning:', error);
+  }
+}
+
+export async function getCrowdsourcedBarcodes(req: AuthenticatedRequest, res: Response) {
+  try {
+    const list = await prisma.crowdsourcedBarcode.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(list);
+  } catch (error) {
+    console.error('getCrowdsourcedBarcodes error:', error);
+    res.status(500).json({ error: 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik' });
+  }
+}
+
+export async function deleteCrowdsourcedBarcode(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    await prisma.crowdsourcedBarcode.delete({
+      where: { id }
+    });
+    res.json({ message: 'Muvaffaqiyatli o\'chirildi' });
+  } catch (error) {
+    console.error('deleteCrowdsourcedBarcode error:', error);
+    res.status(500).json({ error: 'O\'chirishda xatolik yuz berdi' });
   }
 }

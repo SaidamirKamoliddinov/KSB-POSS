@@ -24,6 +24,12 @@ export default function SuperAdmin({ token, user }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Crowdsourced Barcodes
+  const [crowdsourcedBarcodes, setCrowdsourcedBarcodes] = useState([]);
+  const [filteredCrowdsourced, setFilteredCrowdsourced] = useState([]);
+  const [crowdsourcedLoading, setCrowdsourcedLoading] = useState(false);
+  const [crowdSearch, setCrowdSearch] = useState('');
+
   // Show/hide pw toggles for settings
   const [showOldPw, setShowOldPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
@@ -207,6 +213,9 @@ export default function SuperAdmin({ token, user }) {
     if (activeTab === 'barcodes') {
       fetchGlobalBarcodes();
     }
+    if (activeTab === 'crowdsourced') {
+      fetchCrowdsourcedBarcodes();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -235,6 +244,55 @@ export default function SuperAdmin({ token, user }) {
       notify('error', 'Shtrix-kodlarni yuklashda xatolik yuz berdi');
     } finally {
       setBarcodesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!crowdSearch.trim()) { setFilteredCrowdsourced(crowdsourcedBarcodes); return; }
+    const q = crowdSearch.toLowerCase();
+    setFilteredCrowdsourced(crowdsourcedBarcodes.filter(b => 
+      b.name.toLowerCase().includes(q) || 
+      b.barcode.includes(q) ||
+      b.shopName?.toLowerCase().includes(q)
+    ));
+  }, [crowdSearch, crowdsourcedBarcodes]);
+
+  const fetchCrowdsourcedBarcodes = async () => {
+    setCrowdsourcedLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/products/crowdsourced`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCrowdsourcedBarcodes(data);
+        setFilteredCrowdsourced(data);
+      } else {
+        notify('error', data.error);
+      }
+    } catch {
+      notify('error', 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik yuz berdi');
+    } finally {
+      setCrowdsourcedLoading(false);
+    }
+  };
+
+  const handleDeleteCrowdsourced = async (id) => {
+    if (!window.confirm("Haqiqatan ham ushbu foydalanuvchi taklif qilgan shtrix-kodni o'chirib tashlamoqchimisiz?")) return;
+    try {
+      const res = await fetch(`${API_URL}/products/crowdsourced/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        notify('success', 'Shtrix-kod muvaffaqiyatli o\'chirildi');
+        fetchCrowdsourcedBarcodes();
+      } else {
+        notify('error', data.error);
+      }
+    } catch {
+      notify('error', 'O\'chirishda xatolik yuz berdi');
     }
   };
 
@@ -512,6 +570,7 @@ export default function SuperAdmin({ token, user }) {
         {[
           { id: 'users', label: 'Foydalanuvchilar', icon: <Users size={15} /> },
           { id: 'barcodes', label: 'Tizim Shtrix-kodlari', icon: <Globe size={15} /> },
+          { id: 'crowdsourced', label: "Foydalanuvchilardan (Crowdsource)", icon: <Send size={15} /> },
           { id: 'settings', label: 'Mening Sozlamalarim', icon: <Settings size={15} /> },
         ].map(tab => (
           <button
@@ -797,6 +856,80 @@ export default function SuperAdmin({ token, user }) {
                     </div>
                   );
                 })()}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB 1.5: CROWDSOURCED ────────────────────────────────────────── */}
+      {activeTab === 'crowdsourced' && (
+        <div className="space-y-5">
+          {/* Search */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 pointer-events-none"><Search size={17} /></span>
+            <input
+              type="text"
+              placeholder="Shtrix-kod, mahsulot nomi yoki qo'shgan do'kon..."
+              value={crowdSearch}
+              onChange={e => setCrowdSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-slate-900/60 border border-slate-800 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-all"
+            />
+            {crowdSearch && (
+              <button onClick={() => setCrowdSearch('')} className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-white cursor-pointer"><X size={15} /></button>
+            )}
+          </div>
+
+          {crowdsourcedLoading ? (
+            <div className="text-center py-12 text-slate-500">Yuklanmoqda...</div>
+          ) : filteredCrowdsourced.length === 0 ? (
+            <div className="text-center py-16 text-slate-500">
+              <Globe size={48} className="mx-auto mb-4 stroke-[1] text-purple-400" />
+              <p>{crowdSearch ? 'Qidiruv natijasi topilmadi' : 'Foydalanuvchilardan qo\'shilgan mahsulotlar hozircha yo\'q'}</p>
+            </div>
+          ) : (
+            <div className="bg-slate-900/20 border border-slate-800/80 rounded-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                <h3 className="font-black text-slate-200 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block animate-pulse" />
+                  Do'konlardan avtomatik to'ldirilgan shtrix-kodlar
+                </h3>
+                <span className="text-xs bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold px-2.5 py-1 rounded-full">
+                  {filteredCrowdsourced.length} ta mahsulot
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[calc(100vh-295px)] overflow-y-auto pr-1 pb-2">
+                {filteredCrowdsourced.map(item => (
+                  <div key={item.id} className="bg-slate-950/40 border border-slate-850 hover:border-purple-500/40 p-4 rounded-2xl flex flex-col justify-between hover:bg-slate-950/60 transition-all group">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs font-mono font-bold text-purple-400 group-hover:text-purple-300 transition-colors">
+                          {item.barcode}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                          Do'kon taklifi
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
+                        {item.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-2">
+                        Qo'shgan do'kon: <span className="text-slate-400 font-medium">{item.shopName || "Noma'lum"}</span>
+                      </p>
+                    </div>
+                    <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Sana: {new Date(item.createdAt).toLocaleDateString()}</span>
+                      <button 
+                        onClick={() => handleDeleteCrowdsourced(item.id)}
+                        className="text-red-400 hover:text-red-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        <span>O'chirish</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

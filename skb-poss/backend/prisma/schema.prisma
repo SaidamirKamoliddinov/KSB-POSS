@@ -96,3 +96,11 @@ model SaleItem {
   total        Float
   createdAt    DateTime @default(now())
 }
+
+model CrowdsourcedBarcode {
+  id        String   @id @default(uuid())
+  barcode   String   @unique
+  name      String
+  shopName  String   @default("")
+  createdAt DateTime @default(now())
+}

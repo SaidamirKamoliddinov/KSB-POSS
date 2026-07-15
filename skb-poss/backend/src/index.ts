@@ -6,7 +6,7 @@ import prisma from './db.js';
 
 import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings, updatePinCode, updateUserAdmin } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
-import { getProducts, createProduct, updateProduct, deleteProduct, lookupBarcode, getGlobalBarcodes } from './controllers/product.controller.js';
+import { getProducts, createProduct, updateProduct, deleteProduct, lookupBarcode, getGlobalBarcodes, checkAndSaveCrowdsourcedBarcode, getCrowdsourcedBarcodes, deleteCrowdsourcedBarcode } from './controllers/product.controller.js';
 import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive } from './controllers/sale.controller.js';
 import { getDashboardStats } from './controllers/report.controller.js';
 import { authenticateJWT, authorizeRoles } from './middleware/auth.js';
@@ -41,6 +41,8 @@ app.delete('/api/categories/:id', authenticateJWT, authorizeRoles('ADMIN'), dele
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', authenticateJWT, getProducts);
 app.get('/api/products/global-barcodes', authenticateJWT, getGlobalBarcodes);
+app.get('/api/products/crowdsourced', authenticateJWT, authorizeRoles('SUPER_ADMIN'), getCrowdsourcedBarcodes);
+app.delete('/api/products/crowdsourced/:id', authenticateJWT, authorizeRoles('SUPER_ADMIN'), deleteCrowdsourcedBarcode);
 app.get('/api/products/lookup-barcode/:barcode', authenticateJWT, lookupBarcode);
 app.post('/api/products', authenticateJWT, authorizeRoles('ADMIN'), createProduct);
 app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (req: any, res: any) => {
@@ -76,6 +78,9 @@ app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (
           }
         });
         created.push(product);
+        if (product.barcode) {
+          checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
+        }
       } catch (e: any) {
         errors.push(`"${p.name}" - ${e.message?.includes('Unique') ? 'Shtrix-kod takrorlanmoqda' : 'Xatolik'}`);
       }
