@@ -759,9 +759,12 @@ export default function SuperAdmin({ token, user }) {
             <div className="flex flex-col lg:flex-row gap-6 items-start">
               {/* Categories Sidebar */}
               <div className="w-full lg:w-72 shrink-0 bg-slate-900/30 border border-slate-800/80 p-4 rounded-3xl flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto whitespace-nowrap lg:whitespace-normal pb-3 lg:pb-0 scrollbar-none max-h-16 lg:max-h-[calc(100vh-230px)] no-print">
-                {['Barchasi', ...new Set(globalBarcodes.map(b => getProductCategory(b.name)).sort())].map(cat => {
+                {['Barchasi', 'Foydalanuvchilardan', ...new Set(globalBarcodes.map(b => getProductCategory(b.name)).sort())].map(cat => {
                   const isActive = selectedBarcodeCategory === cat;
-                  const displayCount = cat === 'Barchasi' ? globalBarcodes.length : globalBarcodes.filter(b => getProductCategory(b.name) === cat).length;
+                  const displayCount = 
+                    cat === 'Barchasi' ? globalBarcodes.length : 
+                    cat === 'Foydalanuvchilardan' ? crowdsourcedBarcodes.length :
+                    globalBarcodes.filter(b => getProductCategory(b.name) === cat).length;
                   return (
                     <button
                       key={cat}
@@ -785,13 +788,19 @@ export default function SuperAdmin({ token, user }) {
               {/* Barcode Grid Panel */}
               <div className="flex-1 w-full space-y-4">
                 {(() => {
-                  const localFiltered = filteredBarcodes.filter(b => {
-                    if (selectedBarcodeCategory === 'Barchasi') return true;
-                    return getProductCategory(b.name) === selectedBarcodeCategory;
-                  });
+                  const localFiltered = 
+                    selectedBarcodeCategory === 'Foydalanuvchilardan' ? crowdsourcedBarcodes.filter(b => {
+                      if (!barcodeSearch.trim()) return true;
+                      const q = barcodeSearch.toLowerCase();
+                      return b.name.toLowerCase().includes(q) || b.barcode.includes(q);
+                    }) :
+                    filteredBarcodes.filter(b => {
+                      if (selectedBarcodeCategory === 'Barchasi') return true;
+                      return getProductCategory(b.name) === selectedBarcodeCategory;
+                    });
 
                   const displayedBarcodes = [...localFiltered];
-                  if (dynamicSearchResult && (selectedBarcodeCategory === 'Barchasi' || getProductCategory(dynamicSearchResult.name) === selectedBarcodeCategory)) {
+                  if (selectedBarcodeCategory === 'Barchasi' && dynamicSearchResult) {
                     if (!displayedBarcodes.some(b => b.barcode === dynamicSearchResult.barcode)) {
                       displayedBarcodes.unshift(dynamicSearchResult);
                     }
@@ -822,7 +831,9 @@ export default function SuperAdmin({ token, user }) {
                           <div key={item.barcode} className={`border p-4 rounded-2xl flex flex-col justify-between hover:bg-slate-950/60 transition-all group ${
                             item.isDynamic 
                               ? 'bg-purple-950/15 border-purple-500/30 hover:border-purple-500/60 shadow-lg shadow-purple-500/5' 
-                              : 'bg-slate-950/40 border-slate-800/85 hover:border-purple-500/40'
+                              : item.shopName
+                                ? 'bg-indigo-950/10 border-indigo-500/20 hover:border-indigo-500/50'
+                                : 'bg-slate-950/40 border-slate-800/85 hover:border-purple-500/40'
                           }`}>
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2">
@@ -832,9 +843,11 @@ export default function SuperAdmin({ token, user }) {
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                                   item.isDynamic
                                     ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300'
-                                    : 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
+                                    : item.shopName
+                                      ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-300'
+                                      : 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
                                 }`}>
-                                  {item.isDynamic ? 'Soliq / Onlayn' : 'Tizim mahsuloti'}
+                                  {item.isDynamic ? 'Soliq / Onlayn' : item.shopName ? 'Do\'kon taklifi' : 'Tizim mahsuloti'}
                                 </span>
                               </div>
                               <h4 className="font-bold text-white text-sm line-clamp-2 mt-1">
@@ -847,8 +860,17 @@ export default function SuperAdmin({ token, user }) {
                               )}
                             </div>
                             <div className="border-t border-slate-900 mt-3 pt-3 flex items-center justify-between text-[11px] text-slate-500">
-                              <span>Manba: {item.source ? item.source.replace(' (Registry)', '').replace(' ma\'lumotlar bazasi', '') : 'Tizim'}</span>
-                              <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
+                              <span>Manba: {item.shopName ? `Do'kon: ${item.shopName}` : item.source ? item.source.replace(' (Registry)', '').replace(' ma\'lumotlar bazasi', '') : 'Tizim'}</span>
+                              {item.id ? (
+                                <button 
+                                  onClick={() => handleDeleteCrowdsourced(item.id)}
+                                  className="text-red-400 hover:text-red-300 font-semibold cursor-pointer"
+                                >
+                                  O'chirish
+                                </button>
+                              ) : (
+                                <span className="text-red-400/80 font-medium">O'chirib bo'lmaydi</span>
+                              )}
                             </div>
                           </div>
                         ))}

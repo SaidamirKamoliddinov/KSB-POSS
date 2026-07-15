@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../config.js';
+import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Bar, Line, Doughnut 
 } from 'react-chartjs-2';
@@ -18,7 +19,7 @@ import {
 import { 
   TrendingUp, DollarSign, Package, ShoppingBag, AlertTriangle, 
   Trash2, Edit, Plus, X, Settings, FileText, Lock, Printer, Eye, EyeOff, Table, Search,
-  Archive, FolderArchive, ChevronDown, ChevronUp
+  Archive, FolderArchive, ChevronDown, ChevronUp, Camera
 } from 'lucide-react';
 
 // Register Chart.js components
@@ -78,6 +79,112 @@ export default function Dashboard({ token, user }) {
   const [showProductModal, setShowProductModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [barcodeSourceInfo, setBarcodeSourceInfo] = useState(null);
+
+  // Mobile Camera Barcode Scanner states
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState('single'); // 'single' | 'bulk'
+  const [scannerBulkIndex, setScannerBulkIndex] = useState(null);
+  const [scannerError, setScannerError] = useState('');
+  const html5QrcodeRef = useRef(null);
+
+  const playBeep = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime); // 1000Hz tone
+      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      oscillator.start();
+      setTimeout(() => {
+        oscillator.stop();
+        audioCtx.close();
+      }, 150);
+    } catch (err) {
+      console.warn("Audio Context beep error:", err);
+    }
+  };
+
+  const openMobileScanner = (target, bulkIdx = null) => {
+    setScannerTarget(target);
+    setScannerBulkIndex(bulkIdx);
+    setScannerError('');
+    setShowScannerModal(true);
+  };
+
+  const closeMobileScanner = () => {
+    if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
+      html5QrcodeRef.current.stop().then(() => {
+        html5QrcodeRef.current = null;
+        setShowScannerModal(false);
+      }).catch(() => {
+        setShowScannerModal(false);
+      });
+    } else {
+      setShowScannerModal(false);
+    }
+  };
+
+  const handleScanSuccess = (barcode) => {
+    const trimmed = barcode.trim();
+    if (scannerTarget === 'single') {
+      setProductForm(prev => ({ ...prev, barcode: trimmed }));
+      lookupBarcodeInfo(trimmed, false);
+    } else if (scannerTarget === 'bulk' && scannerBulkIndex !== null) {
+      setBulkRows(prev => {
+        const updated = [...prev];
+        updated[scannerBulkIndex].barcode = trimmed;
+        return updated;
+      });
+      lookupBarcodeInfo(trimmed, true, scannerBulkIndex);
+    }
+    closeMobileScanner();
+  };
+
+  useEffect(() => {
+    if (showScannerModal) {
+      const startTimer = setTimeout(() => {
+        try {
+          const html5QrCode = new Html5Qrcode("scanner-reader");
+          html5QrcodeRef.current = html5QrCode;
+          
+          const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+          html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+              playBeep();
+              handleScanSuccess(decodedText);
+            },
+            () => {
+              // Ignore frame errors
+            }
+          ).catch(err => {
+            console.error("Camera start failed:", err);
+            setScannerError("Kameraga ruxsat berilmagan yoki orqa kamera topilmadi");
+          });
+        } catch (e) {
+          console.error("Scanner setup failed:", e);
+          setScannerError("Skanerni faollashtirishda xatolik yuz berdi");
+        }
+      }, 400);
+      return () => clearTimeout(startTimer);
+    } else {
+      if (html5QrcodeRef.current) {
+        try {
+          if (html5QrcodeRef.current.isScanning) {
+            html5QrcodeRef.current.stop().then(() => {
+              html5QrcodeRef.current = null;
+            }).catch(e => console.warn("Stop promise rejected:", e));
+          }
+        } catch (e) {
+          console.warn("Scanner shutdown warning:", e);
+        }
+      }
+    }
+  }, [showScannerModal]);
 
   // PWA & Archive States
   const [archiveSales, setArchiveSales] = useState([]);
@@ -1907,15 +2014,24 @@ export default function Dashboard({ token, user }) {
                       onChange={handleSingleBarcodeChange}
                       onKeyDown={handleSingleBarcodeKeyDown}
                       onBlur={() => lookupBarcodeInfo(productForm.barcode, false)}
-                      className="w-full pl-4 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full pl-4 pr-12 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
                       placeholder="Shtrix-kod (skanerlang yoki yozib Enter bosing)"
                       autoFocus
                     />
-                    {isSearchingBarcode && (
-                      <div className="absolute right-3 top-3.5 flex items-center justify-center">
+                    <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                      {isSearchingBarcode ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
-                      </div>
-                    )}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openMobileScanner('single')}
+                          className="p-1.5 bg-slate-900 border border-slate-800 hover:border-emerald-500 hover:text-emerald-400 text-slate-400 rounded-lg cursor-pointer md:hidden flex items-center justify-center"
+                          title="Kamera orqali skanerlash"
+                        >
+                          <Camera size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2034,14 +2150,24 @@ export default function Dashboard({ token, user }) {
                   {bulkRows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-900/40">
                       <td className="p-2">
-                        <input
-                          type="text"
-                          value={row.barcode}
-                          onChange={(e) => handleBulkBarcodeChange(idx, e.target.value)}
-                          onKeyDown={(e) => handleBulkBarcodeKeyDown(idx, e)}
-                          className="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
-                          placeholder="Barkod"
-                        />
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            value={row.barcode}
+                            onChange={(e) => handleBulkBarcodeChange(idx, e.target.value)}
+                            onKeyDown={(e) => handleBulkBarcodeKeyDown(idx, e)}
+                            className="w-full pl-2 pr-8 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:border-emerald-500"
+                            placeholder="Barkod"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => openMobileScanner('bulk', idx)}
+                            className="absolute right-1 px-1.5 py-1 text-slate-400 hover:text-emerald-450 md:hidden cursor-pointer"
+                            title="Kamera orqali skanerlash"
+                          >
+                            <Camera size={13} />
+                          </button>
+                        </div>
                       </td>
                       <td className="p-2">
                         <input
@@ -2251,6 +2377,53 @@ export default function Dashboard({ token, user }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* 4. MOBILE CAMERA BARCODE SCANNER MODAL */}
+      {showScannerModal && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 no-print animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 relative space-y-4 shadow-2xl">
+            <button 
+              type="button" 
+              onClick={closeMobileScanner} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="text-center">
+              <h4 className="font-bold text-white flex items-center justify-center gap-2">
+                <Camera size={18} className="text-emerald-450 animate-pulse" />
+                <span>Shtrix-kod Skaneri</span>
+              </h4>
+              <p className="text-[10px] text-slate-400 mt-1">Shtrix-kodni kamera markaziga qarating</p>
+            </div>
+            
+            {/* The camera target element */}
+            <div className="overflow-hidden rounded-2xl bg-black border border-slate-850 relative aspect-square w-full">
+              <div id="scanner-reader" className="w-full h-full"></div>
+              {/* Scan Reticle */}
+              <div className="absolute inset-0 border-2 border-dashed border-emerald-500/30 pointer-events-none rounded-2xl flex items-center justify-center">
+                <div className="w-48 h-48 border border-emerald-500 rounded-lg relative">
+                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 animate-bounce"></div>
+                </div>
+              </div>
+            </div>
+            
+            {scannerError && (
+              <p className="text-red-400 text-xs text-center font-semibold bg-red-500/10 border border-red-500/25 py-2 px-3 rounded-lg">
+                ⚠️ {scannerError}
+              </p>
+            )}
+            
+            <button 
+              type="button" 
+              onClick={closeMobileScanner} 
+              className="w-full py-3 bg-slate-800 hover:bg-slate-750 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              Yopish
+            </button>
           </div>
         </div>
       )}
