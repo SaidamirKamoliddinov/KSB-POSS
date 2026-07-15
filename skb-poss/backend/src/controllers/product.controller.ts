@@ -94,11 +94,6 @@ export async function createProduct(req: AuthenticatedRequest, res: Response) {
       }
     });
 
-    // Check and save to crowdsourced barcodes if not in default registry
-    if (product.barcode) {
-      checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
-    }
-
     res.status(201).json(product);
   } catch (error) {
     console.error('createProduct error:', error);
@@ -169,11 +164,6 @@ export async function updateProduct(req: AuthenticatedRequest, res: Response) {
         }
       }
     });
-
-    // Check and save to crowdsourced barcodes if not in default registry
-    if (product.barcode) {
-      checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
-    }
 
     res.json(product);
   } catch (error) {
@@ -328,6 +318,7 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
           if (match && match.name) {
             const cleanedName = cleanName(match.name);
             if (cleanedName) {
+              await checkAndSaveCrowdsourcedBarcode(cleanBarcode, cleanedName, shopId);
               return res.json({
                 name: capitalizeFirstLetter(cleanedName),
                 originalName: match.name,
@@ -347,9 +338,11 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (offResponse.ok) {
         const offData = await offResponse.json() as any;
         if (offData && offData.product && offData.product.product_name) {
+          const nameVal = offData.product.product_name;
+          await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
           return res.json({
-            name: capitalizeFirstLetter(offData.product.product_name),
-            originalName: offData.product.product_name,
+            name: capitalizeFirstLetter(nameVal),
+            originalName: nameVal,
             source: 'Open Food Facts (Xalqaro oziq-ovqat bazasi)'
           });
         }
@@ -364,9 +357,11 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (obfResponse.ok) {
         const obfData = await obfResponse.json() as any;
         if (obfData && obfData.product && obfData.product.product_name) {
+          const nameVal = obfData.product.product_name;
+          await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
           return res.json({
-            name: capitalizeFirstLetter(obfData.product.product_name),
-            originalName: obfData.product.product_name,
+            name: capitalizeFirstLetter(nameVal),
+            originalName: nameVal,
             source: 'Open Beauty Facts (Kosmetika bazasi)'
           });
         }
@@ -381,9 +376,11 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (opfResponse.ok) {
         const opfData = await opfResponse.json() as any;
         if (opfData && opfData.product && opfData.product.product_name) {
+          const nameVal = opfData.product.product_name;
+          await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
           return res.json({
-            name: capitalizeFirstLetter(opfData.product.product_name),
-            originalName: opfData.product.product_name,
+            name: capitalizeFirstLetter(nameVal),
+            originalName: nameVal,
             source: 'Open Products Facts (Xalqaro tovarlar bazasi)'
           });
         }
@@ -398,9 +395,11 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
       if (upcResponse.ok) {
         const upcData = await upcResponse.json() as any;
         if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
+          const nameVal = upcData.items[0].title;
+          await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
           return res.json({
-            name: capitalizeFirstLetter(upcData.items[0].title),
-            originalName: upcData.items[0].title,
+            name: capitalizeFirstLetter(nameVal),
+            originalName: nameVal,
             source: 'UPCitemdb (Xalqaro tovarlar bazasi)'
           });
         }

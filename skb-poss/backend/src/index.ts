@@ -78,9 +78,6 @@ app.post('/api/products/bulk', authenticateJWT, authorizeRoles('ADMIN'), async (
           }
         });
         created.push(product);
-        if (product.barcode) {
-          checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId);
-        }
       } catch (e: any) {
         errors.push(`"${p.name}" - ${e.message?.includes('Unique') ? 'Shtrix-kod takrorlanmoqda' : 'Xatolik'}`);
       }

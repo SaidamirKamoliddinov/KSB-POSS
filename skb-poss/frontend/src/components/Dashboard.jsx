@@ -2025,7 +2025,7 @@ export default function Dashboard({ token, user }) {
                         <button
                           type="button"
                           onClick={() => openMobileScanner('single')}
-                          className="p-1.5 bg-slate-900 border border-slate-800 hover:border-emerald-500 hover:text-emerald-400 text-slate-400 rounded-lg cursor-pointer md:hidden flex items-center justify-center"
+                          className="p-1.5 bg-slate-900 border border-slate-800 hover:border-emerald-500 hover:text-emerald-400 text-slate-400 rounded-lg cursor-pointer flex items-center justify-center"
                           title="Kamera orqali skanerlash"
                         >
                           <Camera size={14} />
@@ -2162,7 +2162,7 @@ export default function Dashboard({ token, user }) {
                           <button
                             type="button"
                             onClick={() => openMobileScanner('bulk', idx)}
-                            className="absolute right-1 px-1.5 py-1 text-slate-400 hover:text-emerald-450 md:hidden cursor-pointer"
+                            className="absolute right-1 px-1.5 py-1 text-slate-400 hover:text-emerald-450 cursor-pointer"
                             title="Kamera orqali skanerlash"
                           >
                             <Camera size={13} />

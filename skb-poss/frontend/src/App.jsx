@@ -16,7 +16,24 @@ export default function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [activeTab, setActiveTab] = useState('pos');
   const [activePrintSale, setActivePrintSale] = useState(null);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(() => {
+    if (localStorage.getItem('isLocked') === 'true') return true;
+    const token = localStorage.getItem('token');
+    const userObj = JSON.parse(localStorage.getItem('user') || 'null');
+    if (token && userObj?.id) {
+      const pinKey = `pin_${userObj.id}`;
+      const hasPin = !!localStorage.getItem(pinKey);
+      const lastActivity = localStorage.getItem('lastActivity');
+      if (hasPin && lastActivity) {
+        const diff = Date.now() - Number(lastActivity);
+        if (diff > INACTIVITY_MS) {
+          localStorage.setItem('isLocked', 'true');
+          return true;
+        }
+      }
+    }
+    return false;
+  });
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
@@ -25,11 +42,15 @@ export default function App() {
   // ── Inactivity Timer ─────────────────────────────────────────────────────────
   const resetTimer = useCallback(() => {
     if (!token) return;
+    localStorage.setItem('lastActivity', Date.now().toString());
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     inactivityTimer.current = setTimeout(() => {
       const pinKey = `pin_${JSON.parse(localStorage.getItem('user') || '{}')?.id}`;
       const hasPin = !!localStorage.getItem(pinKey);
-      if (hasPin) setIsLocked(true);
+      if (hasPin) {
+        setIsLocked(true);
+        localStorage.setItem('isLocked', 'true');
+      }
     }, INACTIVITY_MS);
   }, [token]);
 
@@ -111,6 +132,8 @@ export default function App() {
     setToken(newToken);
     setUser(newUser);
     setIsLocked(false);
+    localStorage.setItem('isLocked', 'false');
+    localStorage.setItem('lastActivity', Date.now().toString());
 
     // Sync database pinCode to localStorage
     if (newUser.id) {
@@ -144,6 +167,8 @@ export default function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('shopSettings'); // Clear settings on logout to isolate users
+    localStorage.removeItem('isLocked');
+    localStorage.removeItem('lastActivity');
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     setToken(null);
     setUser(null);
@@ -186,7 +211,11 @@ export default function App() {
         <PinLock
           userId={user?.id}
           userFullName={user?.fullName}
-          onUnlock={() => { setIsLocked(false); resetTimer(); }}
+          onUnlock={() => { 
+            setIsLocked(false); 
+            localStorage.setItem('isLocked', 'false');
+            resetTimer(); 
+          }}
         />
       )}
 
@@ -259,7 +288,10 @@ export default function App() {
           {/* Manual lock button */}
           {user?.id && localStorage.getItem(`pin_${user.id}`) && (
             <button
-              onClick={() => setIsLocked(true)}
+              onClick={() => {
+                setIsLocked(true);
+                localStorage.setItem('isLocked', 'true');
+              }}
               className="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-400 border border-slate-800 rounded-xl transition-all cursor-pointer"
               title="Ekranni qulflash"
             >
