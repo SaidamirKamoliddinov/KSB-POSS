@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import prisma from './db.js';
+import path from 'path';
 
 import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings, updatePinCode, updateUserAdmin } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
@@ -109,7 +110,19 @@ app.put('/api/shop', authenticateJWT, updateShopSettings);
 // ─── REPORTS ───────────────────────────────────────────────────────────────────
 app.get('/api/reports/dashboard', authenticateJWT, authorizeRoles('ADMIN'), getDashboardStats);
 
+// Serve frontend static assets from ../frontend/dist
+const frontendDistPath = path.join(process.cwd(), '../frontend/dist');
+app.use(express.static(frontendDistPath));
+
 app.get('/api/health', (_req: any, res: any) => res.json({ status: 'ok', time: new Date() }));
+
+// Fallback all other routes to index.html for SPA routing (React Router)
+app.get('*', (req: any, res: any, next: any) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 app.get('/api/test-soliq/:barcode', async (req: any, res: any) => {
   const results: any = {};
