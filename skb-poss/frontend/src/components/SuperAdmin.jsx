@@ -569,8 +569,8 @@ export default function SuperAdmin({ token, user }) {
       <div className="flex border-b border-slate-800 overflow-x-auto whitespace-nowrap flex-nowrap scrollbar-none pb-2 gap-1 no-print">
         {[
           { id: 'users', label: 'Foydalanuvchilar', icon: <Users size={15} /> },
+          { id: 'crowdsourced', label: "Foydalanuvchilardan", icon: <Send size={15} /> },
           { id: 'barcodes', label: 'Tizim Shtrix-kodlari', icon: <Globe size={15} /> },
-          { id: 'crowdsourced', label: "Foydalanuvchilardan (Crowdsource)", icon: <Send size={15} /> },
           { id: 'settings', label: 'Mening Sozlamalarim', icon: <Settings size={15} /> },
         ].map(tab => (
           <button

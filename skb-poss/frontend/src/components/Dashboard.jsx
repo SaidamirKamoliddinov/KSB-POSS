@@ -55,6 +55,15 @@ export default function Dashboard({ token, user }) {
   
   // Sale Detail Modal State
   const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
+  const [isEditingSale, setIsEditingSale] = useState(false);
+  const [editSaleForm, setEditSaleForm] = useState({
+    id: '',
+    customerName: '',
+    paymentType: 'CASH',
+    discountAmount: 0,
+    items: []
+  });
+  const [editSaleSearch, setEditSaleSearch] = useState('');
 
   const [showOldPw, setShowOldPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
@@ -610,6 +619,114 @@ export default function Dashboard({ token, user }) {
       unit: 'dona',
     });
     setBarcodeSourceInfo(null);
+  };
+
+  const startEditingSale = (sale) => {
+    setEditSaleForm({
+      id: sale.id,
+      customerName: sale.customerName || 'Xaridor',
+      paymentType: sale.paymentType,
+      discountAmount: sale.discountAmount || 0,
+      items: sale.items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        name: item.product?.name || 'Mahsulot',
+        unit: item.product?.unit || 'dona',
+        sellingPrice: item.sellingPrice,
+        costPrice: item.costPrice
+      }))
+    });
+    setEditSaleSearch('');
+    setIsEditingSale(true);
+    setSelectedSaleDetail(null);
+  };
+
+  const addProductToEditSale = (prod) => {
+    setEditSaleForm(prev => {
+      const existingIndex = prev.items.findIndex(item => item.productId === prod.id);
+      if (existingIndex > -1) {
+        const updatedItems = [...prev.items];
+        updatedItems[existingIndex].quantity += 1;
+        return { ...prev, items: updatedItems };
+      } else {
+        return {
+          ...prev,
+          items: [
+            ...prev.items,
+            {
+              productId: prod.id,
+              quantity: 1,
+              name: prod.name,
+              unit: prod.unit || 'dona',
+              sellingPrice: prod.sellingPrice,
+              costPrice: prod.costPrice
+            }
+          ]
+        };
+      }
+    });
+    setEditSaleSearch('');
+  };
+
+  const removeProductFromEditSale = (productId) => {
+    setEditSaleForm(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.productId !== productId)
+    }));
+  };
+
+  const updateEditSaleItemQty = (productId, qty) => {
+    const parsedQty = parseFloat(qty);
+    if (isNaN(parsedQty) || parsedQty < 0) return;
+    setEditSaleForm(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.productId === productId ? { ...item, quantity: parsedQty } : item
+      ).filter(item => item.quantity > 0)
+    }));
+  };
+
+  const handleEditSaleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (editSaleForm.items.length === 0) {
+      setError("Savat bo'sh bo'lishi mumkin emas");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/sales/${editSaleForm.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          items: editSaleForm.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity
+          })),
+          discountAmount: parseFloat(editSaleForm.discountAmount) || 0,
+          paymentType: editSaleForm.paymentType,
+          customerName: editSaleForm.customerName
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sotuvni tahrirlashda xatolik yuz berdi');
+
+      setSuccess('Chek muvaffaqiyatli tahrirlandi!');
+      setIsEditingSale(false);
+      fetchSales();
+      fetchProducts();
+      fetchStats();
+      setTimeout(() => setSuccess(''), 1500);
+    } catch (err) {
+      setError(err.message);
+      setTimeout(() => setError(''), 2500);
+    }
   };
 
   const openEditProduct = (prod) => {
@@ -1599,6 +1716,16 @@ export default function Dashboard({ token, user }) {
                             <Eye size={14} />
                           </button>
                           <button
+                            onClick={() => {
+                              fetch(`${API_URL}/sales/${s.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                                .then(r => r.json()).then(data => { if (data.items) startEditingSale(data); });
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-400 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer"
+                            title="Chekni tahrirlash"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
                             onClick={() => deleteSaleRecord(s.id)}
                             className="p-2 text-slate-400 hover:text-red-400 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer"
                             title="Sotuvni bekor qilish / O'chirish"
@@ -2328,6 +2455,179 @@ export default function Dashboard({ token, user }) {
           </div>
         </div>
       )}
+      {/* EDIT SALE MODAL */}
+      {isEditingSale && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 no-print">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6 relative shadow-2xl flex flex-col max-h-[90vh]">
+            <button
+              onClick={() => setIsEditingSale(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="font-bold text-lg text-white mb-1 flex items-center gap-2">
+              <Edit size={18} className="text-blue-400" />
+              Chekni tahrirlash
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">Chek mahsulotlarini qo'shing, o'chiring yoki miqdorini o'zgartiring</p>
+
+            <form onSubmit={handleEditSaleSubmit} className="flex flex-col flex-1 overflow-hidden gap-4">
+              {/* Meta fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Xaridor ismi</label>
+                  <input
+                    type="text"
+                    value={editSaleForm.customerName}
+                    onChange={e => setEditSaleForm(prev => ({ ...prev, customerName: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Xaridor"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">To'lov turi</label>
+                  <select
+                    value={editSaleForm.paymentType}
+                    onChange={e => setEditSaleForm(prev => ({ ...prev, paymentType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="CASH">Naqd</option>
+                    <option value="CARD">Qarz</option>
+                    <option value="CLICK_PAYME">Click/Payme</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Product search */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Mahsulot qidirish va qo'shish..."
+                  value={editSaleSearch}
+                  onChange={e => setEditSaleSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+                {editSaleSearch.trim() && (
+                  <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl mt-1 z-20 shadow-2xl max-h-48 overflow-y-auto">
+                    {products
+                      .filter(p => {
+                        const q = editSaleSearch.toLowerCase();
+                        return p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q));
+                      })
+                      .slice(0, 8)
+                      .map(prod => (
+                        <button
+                          key={prod.id}
+                          type="button"
+                          onClick={() => addProductToEditSale(prod)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-slate-800 text-sm text-white flex justify-between items-center cursor-pointer"
+                        >
+                          <span>{prod.name}</span>
+                          <span className="text-emerald-400 font-bold text-xs">{prod.sellingPrice.toLocaleString()} UZS</span>
+                        </button>
+                      ))
+                    }
+                    {products.filter(p => {
+                      const q = editSaleSearch.toLowerCase();
+                      return p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q));
+                    }).length === 0 && (
+                      <div className="px-4 py-3 text-slate-500 text-sm">Mahsulot topilmadi</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Items table */}
+              <div className="flex-1 overflow-y-auto border border-slate-800 rounded-2xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="sticky top-0 bg-slate-950 z-10">
+                    <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+                      <th className="py-2.5 px-3">Mahsulot</th>
+                      <th className="py-2.5 px-3 w-28">Miqdor</th>
+                      <th className="py-2.5 px-3 text-right">Narxi</th>
+                      <th className="py-2.5 px-3 text-right">Jami</th>
+                      <th className="py-2.5 px-3 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850">
+                    {editSaleForm.items.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="py-6 text-center text-slate-500">Savat bo'sh. Yuqoridan mahsulot qo'shing.</td>
+                      </tr>
+                    ) : (
+                      editSaleForm.items.map((item, idx) => (
+                        <tr key={item.productId} className="hover:bg-slate-900/40">
+                          <td className="py-2.5 px-3 font-medium text-white">{item.name}</td>
+                          <td className="py-2.5 px-3">
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={item.quantity}
+                              onChange={e => updateEditSaleItemQty(item.productId, e.target.value)}
+                              className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:border-blue-500"
+                            />
+                            <span className="ml-1 text-slate-500">{item.unit}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-slate-300">{item.sellingPrice.toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-right text-emerald-400 font-bold">{(item.sellingPrice * item.quantity).toLocaleString()}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeProductFromEditSale(item.productId)}
+                              className="p-1 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                            >
+                              <X size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary and discount */}
+              <div className="flex items-center justify-between gap-4 border-t border-slate-800 pt-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-slate-400">Chegirma (UZS):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editSaleForm.discountAmount}
+                    onChange={e => setEditSaleForm(prev => ({ ...prev, discountAmount: e.target.value }))}
+                    className="w-32 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-400">Jami:</div>
+                  <div className="text-lg font-extrabold text-emerald-400">
+                    {Math.max(0, editSaleForm.items.reduce((s, i) => s + i.sellingPrice * i.quantity, 0) - (parseFloat(editSaleForm.discountAmount) || 0)).toLocaleString()} UZS
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingSale(false)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold cursor-pointer transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold cursor-pointer transition-colors shadow-lg shadow-blue-600/20"
+                >
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 4. ARCHIVE CLEAR MODAL */}
       {showArchiveClearModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 no-print">

@@ -8,7 +8,7 @@ import path from 'path';
 import { login, register, changePassword, getAllUsers, toggleBlockUser, deleteUser, getShopSettings, updateShopSettings, updatePinCode, updateUserAdmin } from './controllers/auth.controller.js';
 import { getCategories, createCategory, updateCategory, deleteCategory } from './controllers/category.controller.js';
 import { getProducts, createProduct, updateProduct, deleteProduct, lookupBarcode, getGlobalBarcodes, checkAndSaveCrowdsourcedBarcode, getCrowdsourcedBarcodes, deleteCrowdsourcedBarcode } from './controllers/product.controller.js';
-import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive } from './controllers/sale.controller.js';
+import { createSale, getSales, getSaleById, deleteSale, payDebt, clearCustomerDebt, getSalesArchive, clearSalesArchive, updateSale } from './controllers/sale.controller.js';
 import { getDashboardStats } from './controllers/report.controller.js';
 import { authenticateJWT, authorizeRoles } from './middleware/auth.js';
 
@@ -99,6 +99,7 @@ app.get('/api/sales', authenticateJWT, getSales);
 app.get('/api/sales/archive', authenticateJWT, getSalesArchive);
 app.post('/api/sales/archive/clear', authenticateJWT, clearSalesArchive);
 app.get('/api/sales/:id', authenticateJWT, getSaleById);
+app.put('/api/sales/:id', authenticateJWT, updateSale);
 app.delete('/api/sales/:id', authenticateJWT, authorizeRoles('ADMIN'), deleteSale);
 app.patch('/api/sales/:id/pay-debt', authenticateJWT, payDebt);
 app.post('/api/sales/clear-debt', authenticateJWT, clearCustomerDebt);

@@ -1,0 +1,25 @@
+{
+  "name": "KSB POSS - Kassa Tizimi",
+  "short_name": "KSB POSS",
+  "description": "KSB POSS - Professional do'kon boshqaruv va kassa tizimi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c101b",
+  "theme_color": "#10b981",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "uz"
+}

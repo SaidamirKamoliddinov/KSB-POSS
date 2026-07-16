@@ -9,6 +9,9 @@ exports.updateProduct = updateProduct;
 exports.deleteProduct = deleteProduct;
 exports.lookupBarcode = lookupBarcode;
 exports.getGlobalBarcodes = getGlobalBarcodes;
+exports.checkAndSaveCrowdsourcedBarcode = checkAndSaveCrowdsourcedBarcode;
+exports.getCrowdsourcedBarcodes = getCrowdsourcedBarcodes;
+exports.deleteCrowdsourcedBarcode = deleteCrowdsourcedBarcode;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const db_js_1 = __importDefault(require("../db.js"));
@@ -252,6 +255,22 @@ async function lookupBarcode(req, res) {
         catch (registryError) {
             console.warn('Barcode registry file error:', registryError);
         }
+        // 0.5 Check crowdsourced barcodes database
+        try {
+            const crowdMatch = await db_js_1.default.crowdsourcedBarcode.findUnique({
+                where: { barcode: cleanBarcode }
+            });
+            if (crowdMatch && crowdMatch.name) {
+                return res.json({
+                    name: capitalizeFirstLetter(crowdMatch.name),
+                    originalName: crowdMatch.name,
+                    source: `Foydalanuvchilardan (${crowdMatch.shopName || "Tizim"})`
+                });
+            }
+        }
+        catch (crowdErr) {
+            console.warn('Crowdsourced database check error:', crowdErr);
+        }
         // 1. Search local DB first
         const dbMatch = await db_js_1.default.product.findFirst({
             where: { barcode: cleanBarcode },
@@ -275,6 +294,7 @@ async function lookupBarcode(req, res) {
                     if (match && match.name) {
                         const cleanedName = cleanName(match.name);
                         if (cleanedName) {
+                            await checkAndSaveCrowdsourcedBarcode(cleanBarcode, cleanedName, shopId);
                             return res.json({
                                 name: capitalizeFirstLetter(cleanedName),
                                 originalName: match.name,
@@ -294,9 +314,11 @@ async function lookupBarcode(req, res) {
             if (offResponse.ok) {
                 const offData = await offResponse.json();
                 if (offData && offData.product && offData.product.product_name) {
+                    const nameVal = offData.product.product_name;
+                    await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
                     return res.json({
-                        name: capitalizeFirstLetter(offData.product.product_name),
-                        originalName: offData.product.product_name,
+                        name: capitalizeFirstLetter(nameVal),
+                        originalName: nameVal,
                         source: 'Open Food Facts (Xalqaro oziq-ovqat bazasi)'
                     });
                 }
@@ -311,9 +333,11 @@ async function lookupBarcode(req, res) {
             if (obfResponse.ok) {
                 const obfData = await obfResponse.json();
                 if (obfData && obfData.product && obfData.product.product_name) {
+                    const nameVal = obfData.product.product_name;
+                    await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
                     return res.json({
-                        name: capitalizeFirstLetter(obfData.product.product_name),
-                        originalName: obfData.product.product_name,
+                        name: capitalizeFirstLetter(nameVal),
+                        originalName: nameVal,
                         source: 'Open Beauty Facts (Kosmetika bazasi)'
                     });
                 }
@@ -328,9 +352,11 @@ async function lookupBarcode(req, res) {
             if (opfResponse.ok) {
                 const opfData = await opfResponse.json();
                 if (opfData && opfData.product && opfData.product.product_name) {
+                    const nameVal = opfData.product.product_name;
+                    await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
                     return res.json({
-                        name: capitalizeFirstLetter(opfData.product.product_name),
-                        originalName: opfData.product.product_name,
+                        name: capitalizeFirstLetter(nameVal),
+                        originalName: nameVal,
                         source: 'Open Products Facts (Xalqaro tovarlar bazasi)'
                     });
                 }
@@ -345,9 +371,11 @@ async function lookupBarcode(req, res) {
             if (upcResponse.ok) {
                 const upcData = await upcResponse.json();
                 if (upcData && upcData.items && upcData.items.length > 0 && upcData.items[0].title) {
+                    const nameVal = upcData.items[0].title;
+                    await checkAndSaveCrowdsourcedBarcode(cleanBarcode, nameVal, shopId);
                     return res.json({
-                        name: capitalizeFirstLetter(upcData.items[0].title),
-                        originalName: upcData.items[0].title,
+                        name: capitalizeFirstLetter(nameVal),
+                        originalName: nameVal,
                         source: 'UPCitemdb (Xalqaro tovarlar bazasi)'
                     });
                 }
@@ -390,5 +418,81 @@ async function getGlobalBarcodes(req, res) {
     catch (error) {
         console.error('getGlobalBarcodes error:', error);
         res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
+    }
+}
+async function checkAndSaveCrowdsourcedBarcode(barcode, name, shopId) {
+    if (!barcode)
+        return;
+    const trimmed = barcode.trim();
+    if (trimmed === '' || trimmed.length < 4)
+        return;
+    try {
+        // 1. Check if it's already in barcode_registry.json
+        const pathsToTry = [
+            path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'backend/src/barcode_registry.json'),
+            path_1.default.join(process.cwd(), 'backend/barcode_registry.json')
+        ];
+        let foundInRegistry = false;
+        for (const p of pathsToTry) {
+            if (fs_1.default.existsSync(p)) {
+                const registryData = JSON.parse(fs_1.default.readFileSync(p, 'utf8'));
+                if (registryData[trimmed]) {
+                    foundInRegistry = true;
+                    break;
+                }
+            }
+        }
+        if (foundInRegistry)
+            return;
+        // 2. Check if already exists in CrowdsourcedBarcode
+        const existing = await db_js_1.default.crowdsourcedBarcode.findUnique({
+            where: { barcode: trimmed }
+        });
+        if (existing)
+            return;
+        // Fetch shop name
+        const shop = await db_js_1.default.shop.findUnique({
+            where: { id: shopId },
+            select: { name: true }
+        });
+        // 3. Create entry
+        await db_js_1.default.crowdsourcedBarcode.create({
+            data: {
+                barcode: trimmed,
+                name: name.trim(),
+                shopName: shop?.name || 'Noma\'lum do\'kon'
+            }
+        });
+    }
+    catch (error) {
+        console.warn('checkAndSaveCrowdsourcedBarcode warning:', error);
+    }
+}
+async function getCrowdsourcedBarcodes(req, res) {
+    try {
+        const list = await db_js_1.default.crowdsourcedBarcode.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(list);
+    }
+    catch (error) {
+        console.error('getCrowdsourcedBarcodes error:', error);
+        res.status(500).json({ error: 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik' });
+    }
+}
+async function deleteCrowdsourcedBarcode(req, res) {
+    try {
+        const { id } = req.params;
+        await db_js_1.default.crowdsourcedBarcode.delete({
+            where: { id }
+        });
+        res.json({ message: 'Muvaffaqiyatli o\'chirildi' });
+    }
+    catch (error) {
+        console.error('deleteCrowdsourcedBarcode error:', error);
+        res.status(500).json({ error: 'O\'chirishda xatolik yuz berdi' });
     }
 }

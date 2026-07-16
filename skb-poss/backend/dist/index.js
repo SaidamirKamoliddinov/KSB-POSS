@@ -8,6 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const db_js_1 = __importDefault(require("./db.js"));
+const path_1 = __importDefault(require("path"));
 const auth_controller_js_1 = require("./controllers/auth.controller.js");
 const category_controller_js_1 = require("./controllers/category.controller.js");
 const product_controller_js_1 = require("./controllers/product.controller.js");
@@ -39,6 +40,8 @@ app.delete('/api/categories/:id', auth_js_1.authenticateJWT, (0, auth_js_1.autho
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 app.get('/api/products', auth_js_1.authenticateJWT, product_controller_js_1.getProducts);
 app.get('/api/products/global-barcodes', auth_js_1.authenticateJWT, product_controller_js_1.getGlobalBarcodes);
+app.get('/api/products/crowdsourced', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('SUPER_ADMIN'), product_controller_js_1.getCrowdsourcedBarcodes);
+app.delete('/api/products/crowdsourced/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('SUPER_ADMIN'), product_controller_js_1.deleteCrowdsourcedBarcode);
 app.get('/api/products/lookup-barcode/:barcode', auth_js_1.authenticateJWT, product_controller_js_1.lookupBarcode);
 app.post('/api/products', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), product_controller_js_1.createProduct);
 app.post('/api/products/bulk', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), async (req, res) => {
@@ -95,6 +98,7 @@ app.get('/api/sales', auth_js_1.authenticateJWT, sale_controller_js_1.getSales);
 app.get('/api/sales/archive', auth_js_1.authenticateJWT, sale_controller_js_1.getSalesArchive);
 app.post('/api/sales/archive/clear', auth_js_1.authenticateJWT, sale_controller_js_1.clearSalesArchive);
 app.get('/api/sales/:id', auth_js_1.authenticateJWT, sale_controller_js_1.getSaleById);
+app.put('/api/sales/:id', auth_js_1.authenticateJWT, sale_controller_js_1.updateSale);
 app.delete('/api/sales/:id', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), sale_controller_js_1.deleteSale);
 app.patch('/api/sales/:id/pay-debt', auth_js_1.authenticateJWT, sale_controller_js_1.payDebt);
 app.post('/api/sales/clear-debt', auth_js_1.authenticateJWT, sale_controller_js_1.clearCustomerDebt);
@@ -103,7 +107,17 @@ app.get('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.getShopSett
 app.put('/api/shop', auth_js_1.authenticateJWT, auth_controller_js_1.updateShopSettings);
 // ─── REPORTS ───────────────────────────────────────────────────────────────────
 app.get('/api/reports/dashboard', auth_js_1.authenticateJWT, (0, auth_js_1.authorizeRoles)('ADMIN'), report_controller_js_1.getDashboardStats);
+// Serve frontend static assets from ../frontend/dist
+const frontendDistPath = path_1.default.join(process.cwd(), '../frontend/dist');
+app.use(express_1.default.static(frontendDistPath));
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
+// Fallback all other routes to index.html for SPA routing (React Router)
+app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+        return next();
+    }
+    res.sendFile(path_1.default.join(frontendDistPath, 'index.html'));
+});
 app.get('/api/test-soliq/:barcode', async (req, res) => {
     const results = {};
     const { barcode } = req.params;

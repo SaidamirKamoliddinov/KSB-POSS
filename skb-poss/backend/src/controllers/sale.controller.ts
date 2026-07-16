@@ -473,3 +473,146 @@ export async function clearSalesArchive(req: AuthenticatedRequest, res: Response
   }
 }
 
+export async function updateSale(req: AuthenticatedRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { items, discountAmount, paymentType, customerName } = req.body;
+    const shopId = req.user?.shopId;
+
+    if (!shopId) {
+      return res.status(401).json({ error: 'Avtorizatsiyadan o\'tilmagan' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Savat bo\'sh bo\'lishi mumkin emas' });
+    }
+
+    if (!paymentType || !['CASH', 'CARD', 'CLICK_PAYME'].includes(paymentType)) {
+      return res.status(400).json({ error: 'To\'lov turi xato tanlangan' });
+    }
+
+    const updatedSale = await prisma.$transaction(async (tx) => {
+      const existingSale = await tx.sale.findFirst({
+        where: { id, shopId },
+        include: { items: true }
+      });
+
+      if (!existingSale) {
+        throw new Error('Sotuv cheki topilmadi');
+      }
+
+      const existingItemsMap = new Map(existingSale.items.map(item => [item.productId, item]));
+      const newItemsMap = new Map(items.map(item => [item.productId, item]));
+
+      for (const [productId, newItem] of newItemsMap.entries()) {
+        const oldItem = existingItemsMap.get(productId);
+        const product = await tx.product.findFirst({
+          where: { id: productId, shopId }
+        });
+
+        if (!product) {
+          throw new Error(`Mahsulot topilmadi: ID ${productId}`);
+        }
+
+        const oldQty = oldItem ? oldItem.quantity : 0;
+        const newQty = newItem.quantity;
+        const diff = newQty - oldQty;
+
+        if (diff > 0) {
+          if (product.stock < diff) {
+            throw new Error(`"${product.name}" mahsulotidan omborda yetarli emas (Mavjud: ${product.stock} ${product.unit}, qo'shimcha zarur: ${diff} ${product.unit})`);
+          }
+          await tx.product.update({
+            where: { id: productId },
+            data: { stock: { decrement: diff } }
+          });
+        } else if (diff < 0) {
+          await tx.product.update({
+            where: { id: productId },
+            data: { stock: { increment: Math.abs(diff) } }
+          });
+        }
+      }
+
+      for (const [productId, oldItem] of existingItemsMap.entries()) {
+        if (!newItemsMap.has(productId)) {
+          await tx.product.update({
+            where: { id: productId },
+            data: { stock: { increment: oldItem.quantity } }
+          });
+        }
+      }
+
+      await tx.saleItem.deleteMany({
+        where: { saleId: id }
+      });
+
+      let totalAmount = 0;
+      const saleItemsData = [];
+
+      for (const item of items) {
+        const { productId, quantity } = item;
+        const product = await tx.product.findFirst({
+          where: { id: productId, shopId }
+        });
+        if (!product) {
+          throw new Error(`Mahsulot topilmadi: ID ${productId}`);
+        }
+
+        const itemTotal = product.sellingPrice * quantity;
+        totalAmount += itemTotal;
+
+        saleItemsData.push({
+          saleId: id,
+          productId: product.id,
+          quantity,
+          sellingPrice: product.sellingPrice,
+          costPrice: product.costPrice,
+          total: itemTotal
+        });
+      }
+
+      const finalAmount = Math.max(0, totalAmount - (parseFloat(discountAmount) || 0));
+      const normalizedCustomerName = customerName && customerName.trim() !== '' ? customerName.trim() : 'Xaridor';
+
+      await tx.saleItem.createMany({
+        data: saleItemsData
+      });
+
+      const debtPaidAmount = existingSale.debtPaidAmount || 0;
+      const isDebtPaid = paymentType === 'CARD' ? (finalAmount <= debtPaidAmount) : false;
+
+      const updated = await tx.sale.update({
+        where: { id },
+        data: {
+          totalAmount: finalAmount,
+          discountAmount: parseFloat(discountAmount) || 0,
+          paymentType,
+          customerName: normalizedCustomerName,
+          isDebtPaid,
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: { name: true, unit: true, barcode: true }
+              }
+            }
+          },
+          cashier: {
+            select: { fullName: true }
+          }
+        }
+      });
+
+      return updated;
+    });
+
+    res.json(updatedSale);
+  } catch (error: any) {
+    console.error('updateSale error:', error);
+    res.status(400).json({ error: error.message || 'Sotuv chekini tahrirlashda xatolik yuz berdi' });
+  }
+}
+
+
