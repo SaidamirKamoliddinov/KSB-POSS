@@ -94,6 +94,10 @@ export async function createProduct(req: AuthenticatedRequest, res: Response) {
       }
     });
 
+    if (product.barcode) {
+      checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId).catch(() => {});
+    }
+
     res.status(201).json(product);
   } catch (error) {
     console.error('createProduct error:', error);
@@ -444,37 +448,50 @@ export async function getGlobalBarcodes(req: AuthenticatedRequest, res: Response
   }
 }
 
+let cachedRegistry: Record<string, string> | null = null;
+
+function getRegistry(): Record<string, string> {
+  if (cachedRegistry) return cachedRegistry;
+  const pathsToTry = [
+    path.join(process.cwd(), 'src/barcode_registry.json'),
+    path.join(process.cwd(), 'dist/barcode_registry.json'),
+    path.join(process.cwd(), 'barcode_registry.json'),
+    path.join(process.cwd(), 'backend/src/barcode_registry.json'),
+    path.join(process.cwd(), 'backend/barcode_registry.json')
+  ];
+  for (const p of pathsToTry) {
+    if (fs.existsSync(p)) {
+      try {
+        cachedRegistry = JSON.parse(fs.readFileSync(p, 'utf8'));
+        return cachedRegistry!;
+      } catch {}
+    }
+  }
+  cachedRegistry = {};
+  return cachedRegistry;
+}
+
 export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefined | null, name: string, shopId: string) {
   if (!barcode) return;
   const trimmed = barcode.trim();
   if (trimmed === '' || trimmed.length < 4) return;
 
   try {
-    // 1. Check if it's already in barcode_registry.json
-    const pathsToTry = [
-      path.join(process.cwd(), 'src/barcode_registry.json'),
-      path.join(process.cwd(), 'dist/barcode_registry.json'),
-      path.join(process.cwd(), 'barcode_registry.json'),
-      path.join(process.cwd(), 'backend/src/barcode_registry.json'),
-      path.join(process.cwd(), 'backend/barcode_registry.json')
-    ];
-    let foundInRegistry = false;
-    for (const p of pathsToTry) {
-      if (fs.existsSync(p)) {
-        const registryData = JSON.parse(fs.readFileSync(p, 'utf8'));
-        if (registryData[trimmed]) {
-          foundInRegistry = true;
-          break;
-        }
-      }
-    }
-    if (foundInRegistry) return;
+    // 1. Check if already in global registry
+    const reg = getRegistry();
+    if (reg[trimmed]) return;
 
-    // 2. Check if already exists in CrowdsourcedBarcode
-    const existing = await prisma.crowdsourcedBarcode.findUnique({
+    // 2. Check if already in Product database (any shop)
+    const existingProduct = await prisma.product.findFirst({
       where: { barcode: trimmed }
     });
-    if (existing) return;
+    if (existingProduct) return;
+
+    // 3. Check if already in CrowdsourcedBarcode table
+    const existingCrowd = await prisma.crowdsourcedBarcode.findUnique({
+      where: { barcode: trimmed }
+    });
+    if (existingCrowd) return;
 
     // Fetch shop name
     const shop = await prisma.shop.findUnique({
@@ -482,7 +499,7 @@ export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefine
       select: { name: true }
     });
 
-    // 3. Create entry
+    // 4. Create entry in CrowdsourcedBarcode
     await prisma.crowdsourcedBarcode.create({
       data: {
         barcode: trimmed,
@@ -500,7 +517,7 @@ export async function getCrowdsourcedBarcodes(req: AuthenticatedRequest, res: Re
     const list = await prisma.crowdsourcedBarcode.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    res.json(list);
+    res.json(list || []);
   } catch (error) {
     console.error('getCrowdsourcedBarcodes error:', error);
     res.status(500).json({ error: 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik' });

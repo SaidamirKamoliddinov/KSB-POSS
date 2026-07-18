@@ -264,14 +264,16 @@ export default function SuperAdmin({ token, user }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && Array.isArray(data)) {
         setCrowdsourcedBarcodes(data);
         setFilteredCrowdsourced(data);
       } else {
-        notify('error', data.error);
+        setCrowdsourcedBarcodes([]);
+        setFilteredCrowdsourced([]);
       }
     } catch {
-      notify('error', 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik yuz berdi');
+      setCrowdsourcedBarcodes([]);
+      setFilteredCrowdsourced([]);
     } finally {
       setCrowdsourcedLoading(false);
     }

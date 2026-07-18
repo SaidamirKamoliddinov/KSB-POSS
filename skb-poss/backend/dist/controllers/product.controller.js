@@ -94,6 +94,9 @@ async function createProduct(req, res) {
                 }
             }
         });
+        if (product.barcode) {
+            checkAndSaveCrowdsourcedBarcode(product.barcode, product.name, shopId).catch(() => { });
+        }
         res.status(201).json(product);
     }
     catch (error) {
@@ -420,6 +423,29 @@ async function getGlobalBarcodes(req, res) {
         res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
     }
 }
+let cachedRegistry = null;
+function getRegistry() {
+    if (cachedRegistry)
+        return cachedRegistry;
+    const pathsToTry = [
+        path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
+        path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
+        path_1.default.join(process.cwd(), 'barcode_registry.json'),
+        path_1.default.join(process.cwd(), 'backend/src/barcode_registry.json'),
+        path_1.default.join(process.cwd(), 'backend/barcode_registry.json')
+    ];
+    for (const p of pathsToTry) {
+        if (fs_1.default.existsSync(p)) {
+            try {
+                cachedRegistry = JSON.parse(fs_1.default.readFileSync(p, 'utf8'));
+                return cachedRegistry;
+            }
+            catch { }
+        }
+    }
+    cachedRegistry = {};
+    return cachedRegistry;
+}
 async function checkAndSaveCrowdsourcedBarcode(barcode, name, shopId) {
     if (!barcode)
         return;
@@ -427,38 +453,28 @@ async function checkAndSaveCrowdsourcedBarcode(barcode, name, shopId) {
     if (trimmed === '' || trimmed.length < 4)
         return;
     try {
-        // 1. Check if it's already in barcode_registry.json
-        const pathsToTry = [
-            path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'backend/src/barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'backend/barcode_registry.json')
-        ];
-        let foundInRegistry = false;
-        for (const p of pathsToTry) {
-            if (fs_1.default.existsSync(p)) {
-                const registryData = JSON.parse(fs_1.default.readFileSync(p, 'utf8'));
-                if (registryData[trimmed]) {
-                    foundInRegistry = true;
-                    break;
-                }
-            }
-        }
-        if (foundInRegistry)
+        // 1. Check if already in global registry
+        const reg = getRegistry();
+        if (reg[trimmed])
             return;
-        // 2. Check if already exists in CrowdsourcedBarcode
-        const existing = await db_js_1.default.crowdsourcedBarcode.findUnique({
+        // 2. Check if already in Product database (any shop)
+        const existingProduct = await db_js_1.default.product.findFirst({
             where: { barcode: trimmed }
         });
-        if (existing)
+        if (existingProduct)
+            return;
+        // 3. Check if already in CrowdsourcedBarcode table
+        const existingCrowd = await db_js_1.default.crowdsourcedBarcode.findUnique({
+            where: { barcode: trimmed }
+        });
+        if (existingCrowd)
             return;
         // Fetch shop name
         const shop = await db_js_1.default.shop.findUnique({
             where: { id: shopId },
             select: { name: true }
         });
-        // 3. Create entry
+        // 4. Create entry in CrowdsourcedBarcode
         await db_js_1.default.crowdsourcedBarcode.create({
             data: {
                 barcode: trimmed,
@@ -476,7 +492,7 @@ async function getCrowdsourcedBarcodes(req, res) {
         const list = await db_js_1.default.crowdsourcedBarcode.findMany({
             orderBy: { createdAt: 'desc' }
         });
-        res.json(list);
+        res.json(list || []);
     }
     catch (error) {
         console.error('getCrowdsourcedBarcodes error:', error);
