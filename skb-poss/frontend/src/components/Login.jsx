@@ -19,6 +19,7 @@ export default function Login({ onLoginSuccess }) {
   const [shopName, setShopName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [registrationKey, setRegistrationKey] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -42,6 +43,11 @@ export default function Login({ onLoginSuccess }) {
       if (!response.ok) throw new Error(data.error || 'Login yoki parol xato');
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.user?.shop?.mode) {
+        const existing = JSON.parse(localStorage.getItem('shopSettings') || '{}');
+        existing.shopMode = data.user.shop.mode;
+        localStorage.setItem('shopSettings', JSON.stringify(existing));
+      }
       onLoginSuccess(data.token, data.user);
     } catch (err) {
       setError(err.message);
@@ -52,7 +58,7 @@ export default function Login({ onLoginSuccess }) {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!fullName || !newUsername || !newPassword || !shopName || !address || !phone) {
+    if (!fullName || !newUsername || !newPassword || !shopName || !address || !phone || !registrationKey) {
       setError('Iltimos, barcha maydonlarni to\'ldiring');
       return;
     }
@@ -70,7 +76,8 @@ export default function Login({ onLoginSuccess }) {
           role: 'ADMIN',
           shopName: shopName.trim(),
           address: address.trim(),
-          phone: phone.trim()
+          phone: phone.trim(),
+          registrationKey: registrationKey.trim()
         }),
       });
       const data = await response.json();
@@ -96,6 +103,12 @@ export default function Login({ onLoginSuccess }) {
           if (loginRes.ok) {
             localStorage.setItem('token', loginData.token);
             localStorage.setItem('user', JSON.stringify(loginData.user));
+            // Persist shopMode for Receipt to use
+            if (loginData.user?.shop?.mode) {
+              const existing = JSON.parse(localStorage.getItem('shopSettings') || '{}');
+              existing.shopMode = loginData.user.shop.mode;
+              localStorage.setItem('shopSettings', JSON.stringify(existing));
+            }
             onLoginSuccess(loginData.token, loginData.user);
           } else {
             setIsRegister(false);
@@ -303,6 +316,21 @@ export default function Login({ onLoginSuccess }) {
               </div>
 
             </div>
+
+            <div className="col-span-2">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Faollashtirish kaliti *
+                </label>
+                <input
+                  type="text"
+                  value={registrationKey}
+                  onChange={e => setRegistrationKey(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-950/50 border border-amber-500/40 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono tracking-widest"
+                  placeholder="KSB-XXXX-XXXX-2026"
+                  autoComplete="off"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">KSB operatori tomonidan berilgan maxsus kalit</p>
+              </div>
 
             <div className="space-y-3 pt-2">
               <button

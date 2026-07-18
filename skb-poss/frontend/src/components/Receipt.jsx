@@ -75,7 +75,7 @@ export default function Receipt({ sale }) {
         {sale.items.map((item, idx) => (
           <div key={idx} className="flex justify-between text-[11px] mb-1">
             <span className="w-1/2 truncate">{item.product.name}</span>
-            <span className="w-1/6 text-right">{item.quantity} {item.product.unit}</span>
+            <span className="w-1/6 text-right">{item.quantity}{savedSettings.shopMode !== 'QTY_ONLY' && item.product.unit ? ' ' + item.product.unit : ''}</span>
             <span className="w-1/6 text-right">{item.sellingPrice.toLocaleString()} UZS</span>
             <span className="w-1/6 text-right">{(item.sellingPrice * item.quantity).toLocaleString()} UZS</span>
           </div>

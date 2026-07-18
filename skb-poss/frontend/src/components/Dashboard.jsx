@@ -36,6 +36,9 @@ ChartJS.register(
 );
 
 export default function Dashboard({ token, user }) {
+  const shopMode = user?.shop?.mode || 'BOTH';
+  const isUnitEnabled = shopMode !== 'QTY_ONLY';
+  const isQuantityEnabled = shopMode !== 'UNIT_ONLY';
   const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'inventory' | 'sales' | 'debts' | 'settings'
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
@@ -1595,7 +1598,7 @@ export default function Dashboard({ token, user }) {
                   <th className="py-4 px-4 text-right hidden md:table-cell">Tannarx</th>
                   <th className="py-4 px-4 text-right">Sotuv Narxi</th>
                   <th className="py-4 px-4 text-right hidden md:table-cell">Foyda</th>
-                  <th className="py-4 px-4 text-right hidden sm:table-cell">O'lchov</th>
+                  {isUnitEnabled && <th className="py-4 px-4 text-right hidden sm:table-cell">O'lchov</th>}
                   <th className="py-4 px-4 text-center">Amallar</th>
                 </tr>
               </thead>
@@ -1628,7 +1631,7 @@ export default function Dashboard({ token, user }) {
                         <td className="py-4 px-4 text-right text-slate-300 hidden md:table-cell">{p.costPrice.toLocaleString()} UZS</td>
                         <td className="py-4 px-4 text-right text-emerald-400 font-bold">{p.sellingPrice.toLocaleString()} UZS</td>
                         <td className="py-4 px-4 text-right text-emerald-500 font-medium hidden md:table-cell">+{itemProfit.toLocaleString()} UZS</td>
-                        <td className="py-4 px-4 text-right capitalize text-slate-300 hidden sm:table-cell">{p.unit}</td>
+                        {isUnitEnabled && <td className="py-4 px-4 text-right capitalize text-slate-300 hidden sm:table-cell">{p.unit}</td>}
                         <td className="py-4 px-4">
                           <div className="flex justify-center gap-2">
                             <button
@@ -2211,6 +2214,7 @@ export default function Dashboard({ token, user }) {
                   />
                 </div>
 
+                {isUnitEnabled && (
                 <div className="col-span-2">
                   <label className="block text-xs text-slate-400 font-semibold mb-2">O'lchov birligi *</label>
                   <select
@@ -2223,6 +2227,7 @@ export default function Dashboard({ token, user }) {
                     <option value="metr">Metr (m)</option>
                   </select>
                 </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4 border-t border-slate-800 mt-6">

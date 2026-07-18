@@ -23,6 +23,8 @@ export async function createSale(req: AuthenticatedRequest, res: Response) {
 
     // Process checkout inside a database transaction
     const saleResult = await prisma.$transaction(async (tx) => {
+      const shop = await tx.shop.findUnique({ where: { id: shopId } });
+      const isQuantityEnabled = shop?.mode !== 'UNIT_ONLY';
       const normalizedCustomerName = customerName && customerName.trim() !== '' ? customerName.trim() : 'Xaridor';
       
       let existingSale = null;
@@ -54,19 +56,21 @@ export async function createSale(req: AuthenticatedRequest, res: Response) {
           throw new Error(`Mahsulot topilmadi: ID ${productId}`);
         }
 
-        if (product.stock < quantity) {
-          throw new Error(`"${product.name}" mahsulotidan omborda yetarli emas (Mavjud: ${product.stock} ${product.unit})`);
-        }
-
-        // Decrement stock
-        await tx.product.update({
-          where: { id: productId },
-          data: {
-            stock: {
-              decrement: quantity
-            }
+        if (isQuantityEnabled) {
+          if (product.stock < quantity) {
+            throw new Error(`"${product.name}" mahsulotidan omborda yetarli emas (Mavjud: ${product.stock} ${product.unit})`);
           }
-        });
+
+          // Decrement stock
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              stock: {
+                decrement: quantity
+              }
+            }
+          });
+        }
 
         const itemTotal = product.sellingPrice * quantity;
         totalAmount += itemTotal;
@@ -259,16 +263,21 @@ export async function deleteSale(req: AuthenticatedRequest, res: Response) {
 
     // Void sale and restore product stocks inside a transaction
     await prisma.$transaction(async (tx) => {
-      // 1. Restore product stocks
-      for (const item of sale.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              increment: item.quantity
+      const shop = await tx.shop.findUnique({ where: { id: shopId } });
+      const isQuantityEnabled = shop?.mode !== 'UNIT_ONLY';
+
+      // 1. Restore product stocks (only if quantity tracking is enabled)
+      if (isQuantityEnabled) {
+        for (const item of sale.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              stock: {
+                increment: item.quantity
+              }
             }
-          }
-        });
+          });
+        }
       }
 
       // 2. Delete the sale (Prisma cascade delete handles SaleItems automatically)
@@ -492,6 +501,9 @@ export async function updateSale(req: AuthenticatedRequest, res: Response) {
     }
 
     const updatedSale = await prisma.$transaction(async (tx) => {
+      const shop = await tx.shop.findUnique({ where: { id: shopId } });
+      const isQuantityEnabled = shop?.mode !== 'UNIT_ONLY';
+
       const existingSale = await tx.sale.findFirst({
         where: { id, shopId },
         include: { items: true }
@@ -504,42 +516,44 @@ export async function updateSale(req: AuthenticatedRequest, res: Response) {
       const existingItemsMap = new Map(existingSale.items.map(item => [item.productId, item]));
       const newItemsMap = new Map(items.map(item => [item.productId, item]));
 
-      for (const [productId, newItem] of newItemsMap.entries()) {
-        const oldItem = existingItemsMap.get(productId);
-        const product = await tx.product.findFirst({
-          where: { id: productId, shopId }
-        });
+      if (isQuantityEnabled) {
+        for (const [productId, newItem] of newItemsMap.entries()) {
+          const oldItem = existingItemsMap.get(productId);
+          const product = await tx.product.findFirst({
+            where: { id: productId, shopId }
+          });
 
-        if (!product) {
-          throw new Error(`Mahsulot topilmadi: ID ${productId}`);
-        }
-
-        const oldQty = oldItem ? oldItem.quantity : 0;
-        const newQty = newItem.quantity;
-        const diff = newQty - oldQty;
-
-        if (diff > 0) {
-          if (product.stock < diff) {
-            throw new Error(`"${product.name}" mahsulotidan omborda yetarli emas (Mavjud: ${product.stock} ${product.unit}, qo'shimcha zarur: ${diff} ${product.unit})`);
+          if (!product) {
+            throw new Error(`Mahsulot topilmadi: ID ${productId}`);
           }
-          await tx.product.update({
-            where: { id: productId },
-            data: { stock: { decrement: diff } }
-          });
-        } else if (diff < 0) {
-          await tx.product.update({
-            where: { id: productId },
-            data: { stock: { increment: Math.abs(diff) } }
-          });
-        }
-      }
 
-      for (const [productId, oldItem] of existingItemsMap.entries()) {
-        if (!newItemsMap.has(productId)) {
-          await tx.product.update({
-            where: { id: productId },
-            data: { stock: { increment: oldItem.quantity } }
-          });
+          const oldQty = oldItem ? oldItem.quantity : 0;
+          const newQty = newItem.quantity;
+          const diff = newQty - oldQty;
+
+          if (diff > 0) {
+            if (product.stock < diff) {
+              throw new Error(`"${product.name}" mahsulotidan omborda yetarli emas (Mavjud: ${product.stock} ${product.unit}, qo'shimcha zarur: ${diff} ${product.unit})`);
+            }
+            await tx.product.update({
+              where: { id: productId },
+              data: { stock: { decrement: diff } }
+            });
+          } else if (diff < 0) {
+            await tx.product.update({
+              where: { id: productId },
+              data: { stock: { increment: Math.abs(diff) } }
+            });
+          }
+        }
+
+        for (const [productId, oldItem] of existingItemsMap.entries()) {
+          if (!newItemsMap.has(productId)) {
+            await tx.product.update({
+              where: { id: productId },
+              data: { stock: { increment: oldItem.quantity } }
+            });
+          }
         }
       }
 

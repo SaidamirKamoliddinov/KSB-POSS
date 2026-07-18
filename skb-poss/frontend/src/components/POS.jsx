@@ -6,6 +6,10 @@ import {
 } from 'lucide-react';
 
 export default function POS({ token, user, onTriggerPrint }) {
+  const shopMode = user?.shop?.mode || 'BOTH';
+  const isUnitEnabled = shopMode !== 'QTY_ONLY';    // UNIT_ONLY or BOTH
+  const isQuantityEnabled = shopMode !== 'UNIT_ONLY'; // QTY_ONLY or BOTH
+
   const [activeMobileTab, setActiveMobileTab] = useState('catalog'); // 'catalog' | 'cart'
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,7 +117,7 @@ export default function POS({ token, user, onTriggerPrint }) {
   };
 
   const addToCart = (product) => {
-    if (product.stock <= 0) {
+    if (isQuantityEnabled && product.stock <= 0) {
       setError(`"${product.name}" mahsulotidan omborda qolmagan!`);
       setTimeout(() => setError(''), 1500);
       return;
@@ -122,7 +126,7 @@ export default function POS({ token, user, onTriggerPrint }) {
       const existing = prevCart.find(item => item.productId === product.id);
       if (existing) {
         const newQty = parseFloat((existing.quantity + 1).toFixed(3));
-        if (newQty > product.stock) {
+        if (isQuantityEnabled && newQty > product.stock) {
           setError(`Omborda faqat ${product.stock} ta "${product.name}" bor!`);
           setTimeout(() => setError(''), 1500);
           return prevCart;
@@ -148,7 +152,7 @@ export default function POS({ token, user, onTriggerPrint }) {
       if (item.productId !== productId) return item;
       const newQty = parseFloat((item.quantity + step).toFixed(3));
       if (newQty <= 0) return null;
-      if (newQty > item.maxStock) {
+      if (isQuantityEnabled && newQty > item.maxStock) {
         setError(`Omborda faqat ${item.maxStock} ta bor!`);
         setTimeout(() => setError(''), 1500);
         return item;
@@ -172,7 +176,7 @@ export default function POS({ token, user, onTriggerPrint }) {
     const newQty = parseFloat(str);
     if (isNaN(newQty) || newQty < 0) return;
     if (newQty === 0) { removeFromCart(productId); return; }
-    if (newQty > maxStock) {
+    if (isQuantityEnabled && newQty > maxStock) {
       setError(`Omborda faqat ${maxStock} ta bor!`);
       setTimeout(() => setError(''), 1500);
       return;
@@ -340,7 +344,7 @@ export default function POS({ token, user, onTriggerPrint }) {
 
       const itemsText = sale.items.map(item => {
         const pName = item.product?.name || 'Mahsulot';
-        const pUnit = item.product?.unit || 'dona';
+        const pUnit = (isUnitEnabled && item.product?.unit) ? item.product.unit : '';
         return `• ${pName}: ${item.quantity} ${pUnit} x ${item.sellingPrice.toLocaleString()} UZS = ${item.total.toLocaleString()} UZS`;
       }).join('\n');
 
@@ -643,9 +647,11 @@ export default function POS({ token, user, onTriggerPrint }) {
                       <span className="text-sm font-black text-emerald-400 block">
                         {prod.sellingPrice.toLocaleString()} UZS
                       </span>
-                      <span className="text-[10px] text-slate-400">
-                        Qoldiq: {prod.stock} {prod.unit}
-                      </span>
+                      {isQuantityEnabled && (
+                        <span className="text-[10px] text-slate-400">
+                          Qoldiq: {prod.stock} {prod.unit}
+                        </span>
+                      )}
                     </div>
                   </div>
 

@@ -14,6 +14,7 @@ model Shop {
   phone      String
   tgBotToken String     @default("")
   tgChatId   String     @default("")
+  mode       String     @default("BOTH") // "UNIT_ONLY" | "QTY_ONLY" | "BOTH"
   users      User[]
   products   Product[]
   categories Category[]

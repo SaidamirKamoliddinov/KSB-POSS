@@ -81,7 +81,8 @@ export async function login(req: AuthenticatedRequest, res: Response) {
           address: user.shop.address,
           phone: user.shop.phone,
           tgBotToken: user.shop.tgBotToken || '',
-          tgChatId: user.shop.tgChatId || ''
+          tgChatId: user.shop.tgChatId || '',
+          mode: user.shop.mode || 'BOTH'
         } : null
       }
     });
@@ -93,10 +94,25 @@ export async function login(req: AuthenticatedRequest, res: Response) {
 
 export async function register(req: AuthenticatedRequest, res: Response) {
   try {
-    const { username, password, role, fullName, shopName, address, phone } = req.body;
+    const { username, password, role, fullName, shopName, address, phone, registrationKey } = req.body;
 
     if (!username || !password || !role || !fullName) {
       return res.status(400).json({ error: 'Barcha majburiy maydonlar to\'ldirilishi shart' });
+    }
+
+    if (!registrationKey) {
+      return res.status(400).json({ error: 'Faollashtirish kaliti kiritilishi shart' });
+    }
+
+    let mode = '';
+    if (registrationKey === 'KSB-UNIT-ONLY-2026') {
+      mode = 'UNIT_ONLY';
+    } else if (registrationKey === 'KSB-QTY-ONLY-2026') {
+      mode = 'QTY_ONLY';
+    } else if (registrationKey === 'KSB-BOTH-FULL-2026') {
+      mode = 'BOTH';
+    } else {
+      return res.status(400).json({ error: 'Kiritilgan faollashtirish kaliti noto\'g\'ri' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { username } });
@@ -116,7 +132,8 @@ export async function register(req: AuthenticatedRequest, res: Response) {
         data: {
           name: finalShopName,
           address: finalAddress,
-          phone: finalPhone
+          phone: finalPhone,
+          mode: mode
         }
       });
 
