@@ -374,6 +374,13 @@ export default function POS({ token, user, onTriggerPrint }) {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+
+    if (paymentType === 'CARD' && (!customerName.trim() || customerName.trim() === 'Xaridor')) {
+      setError('Qarzga sotishda xaridor ismini kiritish majburiy!');
+      setTimeout(() => setError(''), 2500);
+      return;
+    }
+
     setCheckoutLoading(true);
     setError('');
 
@@ -411,8 +418,9 @@ export default function POS({ token, user, onTriggerPrint }) {
   };
 
   const filteredProducts = products.filter(p => {
-    const q = searchQuery.toLowerCase().trim();
-    return p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q));
+    const q = (searchQuery || barcodeInput).toLowerCase().trim();
+    if (!q) return true;
+    return p.name.toLowerCase().includes(q) || (p.barcode && p.barcode.toLowerCase().includes(q));
   });
 
   return (

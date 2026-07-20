@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Delete, Shield } from 'lucide-react';
 
-export default function PinLock({ onUnlock, userId, userFullName }) {
+export default function PinLock({ onUnlock, userId, userFullName, userPinCode }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
 
   const pinKey = `pin_${userId}`;
-  const storedPin = localStorage.getItem(pinKey);
+  const storedPin = userPinCode || localStorage.getItem(pinKey);
 
   useEffect(() => {
     // If no PIN is set, unlock immediately

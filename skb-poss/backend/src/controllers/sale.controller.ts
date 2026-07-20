@@ -21,6 +21,10 @@ export async function createSale(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ error: 'To\'lov turi xato tanlangan' });
     }
 
+    if (paymentType === 'CARD' && (!customerName || customerName.trim() === '' || customerName.trim() === 'Xaridor')) {
+      return res.status(400).json({ error: 'Qarzga sotishda xaridor ismini kiritish majburiy!' });
+    }
+
     // Process checkout inside a database transaction
     const saleResult = await prisma.$transaction(async (tx) => {
       const shop = await tx.shop.findUnique({ where: { id: shopId } });

@@ -396,27 +396,37 @@ async function lookupBarcode(req, res) {
 }
 async function getGlobalBarcodes(req, res) {
     try {
-        const pathsToTry = [
-            path_1.default.join(process.cwd(), 'src/barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'dist/barcode_registry.json'),
-            path_1.default.join(process.cwd(), 'barcode_registry.json')
-        ];
-        let registryPath = '';
-        for (const p of pathsToTry) {
-            if (fs_1.default.existsSync(p)) {
-                registryPath = p;
-                break;
+        const registry = getRegistry();
+        const map = new Map();
+        // 1. Add registry entries
+        for (const [barcode, name] of Object.entries(registry)) {
+            map.set(barcode, {
+                barcode,
+                name: capitalizeFirstLetter(name),
+                shopName: 'Global Bazadan'
+            });
+        }
+        // 2. Add products created by any shop in database
+        const dbProducts = await db_js_1.default.product.findMany({
+            where: {
+                barcode: { not: null }
+            },
+            include: {
+                shop: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        for (const p of dbProducts) {
+            if (p.barcode && p.barcode.trim()) {
+                map.set(p.barcode.trim(), {
+                    barcode: p.barcode.trim(),
+                    name: capitalizeFirstLetter(p.name),
+                    shopName: p.shop?.name || 'Do\'kon'
+                });
             }
         }
-        if (registryPath) {
-            const registryData = JSON.parse(fs_1.default.readFileSync(registryPath, 'utf8'));
-            const list = Object.keys(registryData).map(key => ({
-                barcode: key,
-                name: capitalizeFirstLetter(registryData[key])
-            }));
-            return res.json(list);
-        }
-        return res.json([]);
+        const list = Array.from(map.values());
+        res.json(list);
     }
     catch (error) {
         console.error('getGlobalBarcodes error:', error);

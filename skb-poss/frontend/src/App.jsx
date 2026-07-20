@@ -17,19 +17,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('pos');
   const [activePrintSale, setActivePrintSale] = useState(null);
   const [isLocked, setIsLocked] = useState(() => {
-    if (localStorage.getItem('isLocked') === 'true') return true;
     const token = localStorage.getItem('token');
     const userObj = JSON.parse(localStorage.getItem('user') || 'null');
-    if (token && userObj?.id) {
-      const pinKey = `pin_${userObj.id}`;
-      const hasPin = !!localStorage.getItem(pinKey);
-      const lastActivity = localStorage.getItem('lastActivity');
-      if (hasPin && lastActivity) {
-        const diff = Date.now() - Number(lastActivity);
-        if (diff > INACTIVITY_MS) {
-          localStorage.setItem('isLocked', 'true');
-          return true;
-        }
+    if (!token || !userObj?.id) return false;
+
+    const pinKey = `pin_${userObj.id}`;
+    const hasPin = !!(userObj.pinCode || localStorage.getItem(pinKey));
+    if (!hasPin) return false;
+
+    if (localStorage.getItem('isLocked') === 'true') return true;
+
+    const lastActivity = localStorage.getItem('lastActivity');
+    if (lastActivity) {
+      const diff = Date.now() - Number(lastActivity);
+      if (diff > INACTIVITY_MS) {
+        localStorage.setItem('isLocked', 'true');
+        return true;
       }
     }
     return false;
@@ -45,8 +48,9 @@ export default function App() {
     localStorage.setItem('lastActivity', Date.now().toString());
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     inactivityTimer.current = setTimeout(() => {
-      const pinKey = `pin_${JSON.parse(localStorage.getItem('user') || '{}')?.id}`;
-      const hasPin = !!localStorage.getItem(pinKey);
+      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+      const pinKey = `pin_${userObj?.id}`;
+      const hasPin = !!(userObj?.pinCode || localStorage.getItem(pinKey));
       if (hasPin) {
         setIsLocked(true);
         localStorage.setItem('isLocked', 'true');
@@ -211,6 +215,7 @@ export default function App() {
         <PinLock
           userId={user?.id}
           userFullName={user?.fullName}
+          userPinCode={user?.pinCode}
           onUnlock={() => { 
             setIsLocked(false); 
             localStorage.setItem('isLocked', 'false');
@@ -286,7 +291,7 @@ export default function App() {
           )}
 
           {/* Manual lock button */}
-          {user?.id && localStorage.getItem(`pin_${user.id}`) && (
+          {user?.id && (user?.pinCode || localStorage.getItem(`pin_${user.id}`)) && (
             <button
               onClick={() => {
                 setIsLocked(true);
@@ -348,7 +353,7 @@ export default function App() {
               </div>
             </div>
 
-            {localStorage.getItem(`pin_${user?.id}`) && (
+            {(user?.pinCode || localStorage.getItem(`pin_${user?.id}`)) && (
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-emerald-400 text-xs flex items-center justify-between gap-3">
                 <span>✅ PIN kod o'rnatilgan</span>
                 <button
@@ -364,6 +369,9 @@ export default function App() {
                       });
                       if (res.ok) {
                         localStorage.removeItem(`pin_${user?.id}`);
+                        const updatedUser = { ...user, pinCode: '' };
+                        setUser(updatedUser);
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
                         alert('PIN kod muvaffaqiyatli o\'chirildi!');
                       } else {
                         alert('PIN kodni o\'chirishda xatolik yuz berdi');
@@ -428,6 +436,9 @@ export default function App() {
                     });
                     if (res.ok) {
                       localStorage.setItem(`pin_${user?.id}`, pinInput);
+                      const updatedUser = { ...user, pinCode: pinInput };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
                       alert('PIN kod o\'rnatildi!');
                     } else {
                       alert('PIN kodni saqlashda xatolik yuz berdi');

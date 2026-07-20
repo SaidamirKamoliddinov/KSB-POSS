@@ -421,27 +421,41 @@ export async function lookupBarcode(req: AuthenticatedRequest, res: Response) {
 
 export async function getGlobalBarcodes(req: AuthenticatedRequest, res: Response) {
   try {
-    const pathsToTry = [
-      path.join(process.cwd(), 'src/barcode_registry.json'),
-      path.join(process.cwd(), 'dist/barcode_registry.json'),
-      path.join(process.cwd(), 'barcode_registry.json')
-    ];
-    let registryPath = '';
-    for (const p of pathsToTry) {
-      if (fs.existsSync(p)) {
-        registryPath = p;
-        break;
+    const registry = getRegistry();
+    const map = new Map<string, { barcode: string; name: string; shopName?: string }>();
+
+    // 1. Add registry entries
+    for (const [barcode, name] of Object.entries(registry)) {
+      map.set(barcode, {
+        barcode,
+        name: capitalizeFirstLetter(name),
+        shopName: 'Global Bazadan'
+      });
+    }
+
+    // 2. Add products created by any shop in database
+    const dbProducts = await prisma.product.findMany({
+      where: {
+        barcode: { not: null }
+      },
+      include: {
+        shop: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    for (const p of dbProducts) {
+      if (p.barcode && p.barcode.trim()) {
+        map.set(p.barcode.trim(), {
+          barcode: p.barcode.trim(),
+          name: capitalizeFirstLetter(p.name),
+          shopName: p.shop?.name || 'Do\'kon'
+        });
       }
     }
-    if (registryPath) {
-      const registryData = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-      const list = Object.keys(registryData).map(key => ({
-        barcode: key,
-        name: capitalizeFirstLetter(registryData[key])
-      }));
-      return res.json(list);
-    }
-    return res.json([]);
+
+    const list = Array.from(map.values());
+    res.json(list);
   } catch (error) {
     console.error('getGlobalBarcodes error:', error);
     res.status(500).json({ error: 'Shtrix-kodlarni yuklashda xatolik' });
