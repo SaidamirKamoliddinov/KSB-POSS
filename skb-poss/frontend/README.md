@@ -25,7 +25,6 @@
    npm install
 Запуск проекта:
 
-Bash
 npm run dev
 
 
@@ -51,9 +50,10 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
 🚀 Mahalliy (Local) ishga tushirish
 Bog'liqliklarni yuklab olish:
 
-Bash
+
 npm install
+
 Loyihani ishga tushirish:
 
-Bash
+
 npm run dev
