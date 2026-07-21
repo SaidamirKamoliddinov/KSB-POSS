@@ -22,10 +22,12 @@
 ### 🚀 Локальный запуск
 1. Установка зависимостей:
    ```bash
-   npm install
+   npm install.
+   
 Запуск проекта:
+
  ```bash
-npm run dev
+npm run dev.
 
 
 O'zbek tili
@@ -51,9 +53,9 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
 Bog'liqliklarni yuklab olish:
 
 ```bash
-   npm install
+   npm install.
 
 Loyihani ishga tushirish:
 
 ```bash
-   npm run dev
+   npm run dev.
