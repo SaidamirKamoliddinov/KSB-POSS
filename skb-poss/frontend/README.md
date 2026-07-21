@@ -1,16 +1,59 @@
-# React + Vite
+# 🛒 KSB POS / SKB POS — Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+[RU] Веб-интерфейс для автоматизации торговых точек и розничной торговли.  
+[UZ] Do'konlar va savdo nuqtalarini avtomatlashtirish uchun mo'ljallangan veb-interfeys.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌐 Русский язык
 
-## React Compiler
+### 🛠 Технологический стек
+* **Framework:** React.js
+* **Build Tool:** Vite
+* **Styling & UI:** CSS3 / Tailwind CSS
+* **API & Data:** REST API Integration, JavaScript (ES6+)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### ✨ Основные возможности
+* 💳 **Кассовый модуль:** Быстрое проведение продаж, оформление чеков и работа с товарами.
+* 📦 **Учет склада:** Контроль остатков товаров, категории и каталогизация.
+* 📊 **Аналитика:** Базовые отчеты по продажам и выручке.
+* ⚡ **Высокая скорость:** Оптимизированный и отзывчивый UI на базе React + Vite.
 
-## Expanding the Oxlint configuration
+### 🚀 Локальный запуск
+1. Установка зависимостей:
+   ```bash
+   npm install
+Запуск проекта:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Bash
+npm run dev
+
+
+O'zbek tili
+🛠 Texnologik stek
+Karkas: React.js
+
+Yig'uvchi (Build Tool): Vite
+
+Dizayn va UI: CSS3 / Tailwind CSS
+
+API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
+
+✨ Asosiy imkoniyatlar
+💳 Kassa moduli: Sotuvlarni tezkor rasmiylashtirish va cheklar bilan ishlash.
+
+📦 Ombor hisobi: Tovar qoldiqlarini nazorat qilish, kategoriyalar va kataloglar.
+
+📊 Analitika: Sotuvlar va tushumlar bo'yicha hisobotlar.
+
+⚡ Yuqori tezlik: React va Vite asosida tez ishlaydigan moslashuvchan interfeys.
+
+🚀 Mahalliy (Local) ishga tushirish
+Bog'liqliklarni yuklab olish:
+
+Bash
+npm install
+Loyihani ishga tushirish:
+
+Bash
+npm run dev
