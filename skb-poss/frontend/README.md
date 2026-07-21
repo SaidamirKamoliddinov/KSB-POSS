@@ -25,7 +25,7 @@
    npm install.
    
 2.Запуск проекта:
-   ```bash
+
    npm run dev.
 
 
