@@ -49,8 +49,8 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
 ⚡ Yuqori tezlik: React va Vite asosida tez ishlaydigan moslashuvchan interfeys.
 
 🚀 Mahalliy (Local) ishga tushirish
-Bog'liqliklarni yuklab olish:
 
+1.Bog'liqliklarni yuklab olish:
   ```bash
    npm install.
 
