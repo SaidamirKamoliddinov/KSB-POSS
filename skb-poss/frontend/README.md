@@ -24,8 +24,8 @@
    ```bash
    npm install.
    
-Запуск проекта:
-
+2.Запуск проекта:
+```bash
    npm run dev.
 
 
@@ -54,5 +54,6 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
   ```bash
    npm install.
 
-Loyihani ishga tushirish:
+2.Loyihani ishga tushirish:
+  ```bash
    npm run dev.
