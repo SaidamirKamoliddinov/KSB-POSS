@@ -55,5 +55,5 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
    npm install.
 
 2.Loyihani ishga tushirish:
-  ```bash
+  
    npm run dev.
