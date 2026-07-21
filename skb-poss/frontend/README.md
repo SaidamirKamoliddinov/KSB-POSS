@@ -26,7 +26,6 @@
    
 Запуск проекта:
 
-```bash
    npm run dev.
 
 
@@ -56,5 +55,4 @@ Bog'liqliklarni yuklab olish:
    npm install.
 
 Loyihani ishga tushirish:
-  ```bash
    npm run dev.
