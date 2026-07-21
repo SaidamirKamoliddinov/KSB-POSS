@@ -56,6 +56,5 @@ Bog'liqliklarni yuklab olish:
    npm install.
 
 Loyihani ishga tushirish:
- 
- ```bash
+  ```bash
    npm run dev.
