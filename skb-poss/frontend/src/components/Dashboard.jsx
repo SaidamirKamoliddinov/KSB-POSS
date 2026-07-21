@@ -750,7 +750,6 @@ export default function Dashboard({ token, user }) {
   const openLabelPrintWindow = (productList) => {
     let rawShopName = shopName || "KSB POSS DO'KONI";
     const shopDisplayName = rawShopName.replace(/^[\*\s⭐]+|[\*\s⭐]+$/g, '').trim();
-    const shopAddr = address || '';
 
     // Extract width and height from labelSize, e.g. "40x30mm"
     const [widthStr, heightStr] = labelSize.split('x');
@@ -763,50 +762,57 @@ export default function Dashboard({ token, user }) {
 
     const labelsHtml = productList.map(prod => {
       const barcode = prod.barcode || (prod.id ? prod.id.slice(0, 12).toUpperCase() : '000000000000');
-      const bars = Array.from({ length: 44 }).map((_, i) => {
-        const isWide = i === 0 || i === 1 || i === 42 || i === 43 || (i % 5 === 0) || (i % 9 === 0);
+      const bars = Array.from({ length: 46 }).map((_, i) => {
+        const isGuard = i < 3 || i > 42 || (i >= 21 && i <= 24);
+        const isWide = isGuard || (i % 5 === 0) || (i % 7 === 0);
         const isSpace = i % 2 === 1;
-        return `<div style="height:100%; width:${isSpace ? '1px' : isWide ? '2.5px' : '1.5px'}; background:${isSpace ? 'transparent' : '#000000'};"></div>`;
+        return `<div style="height:100%; width:${isSpace ? '0.8px' : isWide ? '2.4px' : '1.2px'}; background:${isSpace ? 'transparent' : '#000000'};"></div>`;
       }).join('');
 
       return `
         <div style="
-          width:${widthVal}; height:${heightVal}; padding:${1.2 * scale}mm; box-sizing:border-box;
+          width:${widthVal}; height:${heightVal}; padding:${1.5 * scale}mm; box-sizing:border-box;
           background:#ffffff; color:#000000; overflow:hidden;
           page-break-after:always; page-break-inside:avoid;
           display:flex; flex-direction:column; justify-content:space-between; align-items:center;
-          border:${1 * scale}px solid #000000;
-          font-family:Arial, sans-serif;
+          border:${1.2 * scale}px solid #000000;
+          outline:${0.6 * scale}px solid #000000;
+          outline-offset:-${2.5 * scale}px;
+          font-family:'Segoe UI', Arial, sans-serif;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         ">
-          <!-- Shop Header -->
-          <div style="width:100%; border-bottom:${1 * scale}px solid #000000; padding-bottom:${0.3 * scale}mm; text-align:center;">
-            <div style="font-size:${7.5 * scale}px; font-weight:bold; color:#000000; text-transform:uppercase; letter-spacing:${0.4 * scale}px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          <!-- Deluxe Shop Header -->
+          <div style="width:100%; text-align:center; padding-bottom:${0.3 * scale}mm; border-bottom:${0.8 * scale}px solid #000000; margin-top:${0.5 * scale}mm;">
+            <div style="font-size:${7.8 * scale}px; font-weight:900; color:#000000; text-transform:uppercase; letter-spacing:${0.6 * scale}px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 ${2 * scale}mm;">
               ${shopDisplayName}
             </div>
           </div>
 
-          <!-- Product Name -->
-          <div style="width:100%; text-align:center; margin:${0.4 * scale}mm 0;">
-            <div style="font-size:${8.5 * scale}px; font-weight:800; color:#000000; line-height:1.1; word-break:break-word; max-height:${8 * scale}mm; overflow:hidden;">
+          <!-- Deluxe Product Title -->
+          <div style="width:100%; text-align:center; margin:${0.4 * scale}mm 0; padding:0 ${1 * scale}mm;">
+            <div style="font-size:${8.8 * scale}px; font-weight:800; color:#000000; line-height:1.1; word-break:break-word; max-height:${8.5 * scale}mm; overflow:hidden;">
               ${prod.name}
             </div>
           </div>
 
-          <!-- Selling Price -->
-          <div style="width:95%; border:${1.5 * scale}px solid #000000; border-radius:${1 * scale}mm; padding:${0.4 * scale}mm ${1 * scale}mm; background:#ffffff; text-align:center;">
-            <span style="font-size:${4 * scale}px; font-weight:bold; color:#000000; text-transform:uppercase;">NARXI: </span>
-            <span style="font-size:${10.5 * scale}px; font-weight:900; color:#000000;">${prod.sellingPrice ? prod.sellingPrice.toLocaleString() : '0'}</span>
-            <span style="font-size:${5.5 * scale}px; font-weight:bold; color:#000000;"> UZS</span>
+          <!-- Deluxe Price Box -->
+          <div style="
+            width:92%; border:${1.5 * scale}px solid #000000; border-radius:${1.5 * scale}mm;
+            padding:${0.5 * scale}mm ${1.5 * scale}mm; background:#ffffff;
+            display:flex; align-items:center; justify-content:center; gap:${1 * scale}mm;
+          ">
+            <span style="font-size:${4.2 * scale}px; font-weight:900; color:#000000; text-transform:uppercase; letter-spacing:${0.5 * scale}px;">NARXI:</span>
+            <span style="font-size:${11 * scale}px; font-weight:900; color:#000000; letter-spacing:-${0.2 * scale}px;">${prod.sellingPrice ? prod.sellingPrice.toLocaleString() : '0'}</span>
+            <span style="font-size:${5.8 * scale}px; font-weight:800; color:#000000;">UZS</span>
           </div>
 
-          <!-- Barcode Image & Digits -->
-          <div style="width:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-top:${0.3 * scale}mm;">
-            <div style="display:flex; align-items:stretch; height:${6.5 * scale}mm; width:92%; justify-content:center; gap:0;">
+          <!-- High-End Barcode & Monospace Numbers -->
+          <div style="width:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; margin-bottom:${0.3 * scale}mm;">
+            <div style="display:flex; align-items:stretch; height:${6.8 * scale}mm; width:90%; justify-content:center; gap:0;">
               ${bars}
             </div>
-            <div style="font-size:${6.5 * scale}px; font-family:'Courier New', monospace; font-weight:bold; letter-spacing:${0.8 * scale}px; color:#000000; margin-top:${0.3 * scale}mm; text-align:center;">
+            <div style="font-size:${6.8 * scale}px; font-family:'Courier New', monospace; font-weight:900; letter-spacing:${1 * scale}px; color:#000000; margin-top:${0.4 * scale}mm; text-align:center;">
               ${barcode}
             </div>
           </div>

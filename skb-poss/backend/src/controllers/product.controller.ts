@@ -495,13 +495,7 @@ export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefine
     const reg = getRegistry();
     if (reg[trimmed]) return;
 
-    // 2. Check if already in Product database (any shop)
-    const existingProduct = await prisma.product.findFirst({
-      where: { barcode: trimmed }
-    });
-    if (existingProduct) return;
-
-    // 3. Check if already in CrowdsourcedBarcode table
+    // 2. Check if already in CrowdsourcedBarcode table
     const existingCrowd = await prisma.crowdsourcedBarcode.findUnique({
       where: { barcode: trimmed }
     });
@@ -513,7 +507,7 @@ export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefine
       select: { name: true }
     });
 
-    // 4. Create entry in CrowdsourcedBarcode
+    // 3. Create entry in CrowdsourcedBarcode
     await prisma.crowdsourcedBarcode.create({
       data: {
         barcode: trimmed,
@@ -528,13 +522,51 @@ export async function checkAndSaveCrowdsourcedBarcode(barcode: string | undefine
 
 export async function getCrowdsourcedBarcodes(req: AuthenticatedRequest, res: Response) {
   try {
-    const list = await prisma.crowdsourcedBarcode.findMany({
+    const list: Array<{ id: string; barcode: string; name: string; shopName: string; createdAt?: Date }> = [];
+    const seenBarcodes = new Set<string>();
+
+    // 1. Fetch entries from CrowdsourcedBarcode table
+    const crowdList = await prisma.crowdsourcedBarcode.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    res.json(list || []);
+    for (const c of crowdList) {
+      if (c.barcode) seenBarcodes.add(c.barcode.trim());
+      list.push({
+        id: c.id,
+        barcode: c.barcode,
+        name: capitalizeFirstLetter(c.name),
+        shopName: c.shopName || 'Foydalanuvchi',
+        createdAt: c.createdAt
+      });
+    }
+
+    // 2. Fetch ALL products created across all shops (including user 1313)
+    const dbProducts = await prisma.product.findMany({
+      include: {
+        shop: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    for (const p of dbProducts) {
+      const barcodeStr = p.barcode && p.barcode.trim() !== '' ? p.barcode.trim() : 'Shtrix-kod biriktirilmagan';
+      
+      if (!p.barcode || !seenBarcodes.has(p.barcode.trim())) {
+        if (p.barcode) seenBarcodes.add(p.barcode.trim());
+        list.push({
+          id: p.id,
+          barcode: barcodeStr,
+          name: capitalizeFirstLetter(p.name),
+          shopName: p.shop?.name || 'Do\'kon',
+          createdAt: p.createdAt
+        });
+      }
+    }
+
+    res.json(list);
   } catch (error) {
     console.error('getCrowdsourcedBarcodes error:', error);
-    res.status(500).json({ error: 'Foydalanuvchilardan qo\'shilgan shtrix-kodlarni yuklashda xatolik' });
+    res.status(500).json({ error: 'Foydalanuvchilardan qo\'shilgan mahsulotlarni yuklashda xatolik' });
   }
 }
 
