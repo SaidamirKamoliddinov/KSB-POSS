@@ -26,8 +26,8 @@
    
 Запуск проекта:
 
-
-npm run dev.
+```bash
+   npm run dev.
 
 
 O'zbek tili
