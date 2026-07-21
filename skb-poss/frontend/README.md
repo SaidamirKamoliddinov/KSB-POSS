@@ -52,10 +52,10 @@ API va Ma'lumotlar: REST API integratsiyasi, JavaScript (ES6+)
 🚀 Mahalliy (Local) ishga tushirish
 Bog'liqliklarni yuklab olish:
 
- ```bash
+  ```bash
    npm install.
 
 Loyihani ishga tushirish:
-
-```bash
+ 
+ ```bash
    npm run dev.
